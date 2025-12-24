@@ -1,0 +1,29 @@
+# JPS Admin Panel - Git Ignore
+
+# Configuration (contains sensitive data)
+includes/config.php
+
+# Logs
+logs/
+*.log
+
+# OS files
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# IDE files
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# Temporary files
+*.tmp
+*.temp
+*.bak
+
+# PHP dependencies (if using Composer)
+vendor/
+composer.lock
