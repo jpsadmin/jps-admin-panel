@@ -123,14 +123,31 @@ function cmd_get_credentials(string $domain): array
     }
 
     $config = get_config();
-    $creds_file = $config['websites_root'] . '/' . $domain . '/.credentials';
 
-    if (!file_exists($creds_file)) {
+    // Try multiple credential file locations (CREDENTIALS.txt is the primary one)
+    $creds_locations = [
+        $config['websites_root'] . '/' . $domain . '/CREDENTIALS.txt',
+        $config['websites_root'] . '/' . $domain . '/.credentials',
+        $config['websites_root'] . '/' . $domain . '/credentials.txt',
+    ];
+
+    $creds_file = null;
+    foreach ($creds_locations as $location) {
+        // Use sudo to check if file exists (may be root-owned with 600 permissions)
+        $check_cmd = '/usr/bin/test -f ' . escapeshellarg($location) . ' && echo exists';
+        $check_result = execute_command($check_cmd);
+        if (strpos($check_result['output'], 'exists') !== false) {
+            $creds_file = $location;
+            break;
+        }
+    }
+
+    if (!$creds_file) {
         return ['success' => false, 'error' => 'Credentials file not found'];
     }
 
-    // Read credentials with sudo (file may be root-owned)
-    $cmd = 'cat ' . escapeshellarg($creds_file);
+    // Read credentials with sudo (file is root-owned with 600 permissions)
+    $cmd = '/usr/bin/cat ' . escapeshellarg($creds_file);
     $result = execute_command($cmd);
 
     if ($result['success']) {
@@ -246,25 +263,31 @@ function cmd_get_site_logs(string $domain, int $lines = 100): array
     }
 
     $config = get_config();
-    $log_file = $config['websites_root'] . '/' . $domain . '/logs/error.log';
 
-    if (!file_exists($log_file)) {
-        // Try alternative locations
-        $alt_locations = [
-            $config['websites_root'] . '/' . $domain . '/logs/php_error.log',
-            '/var/log/lsws/' . $domain . '.error.log',
-        ];
+    // Log file locations to check
+    $log_locations = [
+        $config['websites_root'] . '/' . $domain . '/logs/error.log',
+        $config['websites_root'] . '/' . $domain . '/logs/php_error.log',
+        '/var/log/lsws/' . $domain . '.error.log',
+    ];
 
-        foreach ($alt_locations as $alt) {
-            if (file_exists($alt)) {
-                $log_file = $alt;
-                break;
-            }
+    $log_file = null;
+    foreach ($log_locations as $location) {
+        // Use sudo to check if file exists (may be root-owned)
+        $check_cmd = '/usr/bin/test -f ' . escapeshellarg($location) . ' && echo exists';
+        $check_result = execute_command($check_cmd);
+        if (strpos($check_result['output'], 'exists') !== false) {
+            $log_file = $location;
+            break;
         }
     }
 
+    if (!$log_file) {
+        return ['success' => false, 'error' => 'No log file found for this site'];
+    }
+
     $lines = min(max(10, $lines), 500); // Limit to 10-500 lines
-    $cmd = 'tail -n ' . (int)$lines . ' ' . escapeshellarg($log_file);
+    $cmd = '/usr/bin/tail -n ' . (int)$lines . ' ' . escapeshellarg($log_file);
 
     return execute_command($cmd);
 }
@@ -332,6 +355,56 @@ function cmd_verify_backup(string $domain): array
 
     $config = get_config();
     $cmd = escapeshellcmd($config['commands']['jps-backup-verify']) . ' ' . escapeshellarg($domain);
+
+    return execute_command($cmd);
+}
+
+/**
+ * Deploy a new site
+ */
+function cmd_deploy_site(string $domain): array
+{
+    // Validate domain format (not against existing sites since it's new)
+    if (empty($domain)) {
+        return ['success' => false, 'error' => 'Domain is required'];
+    }
+
+    // Basic domain validation
+    $domain = preg_replace('/[^a-zA-Z0-9.-]/', '', $domain);
+    if (empty($domain) || strlen($domain) < 4 || !preg_match('/^[a-zA-Z0-9]([a-zA-Z0-9-]*\.)+[a-zA-Z]{2,}$/', $domain)) {
+        return ['success' => false, 'error' => 'Invalid domain format'];
+    }
+
+    $config = get_config();
+    $cmd = escapeshellcmd($config['commands']['jps-deploy-site']) . ' ' . escapeshellarg($domain);
+
+    log_action('deploy_site', $domain);
+
+    return execute_command($cmd);
+}
+
+/**
+ * Save audit snapshot
+ */
+function cmd_save_audit_snapshot(): array
+{
+    $config = get_config();
+    $cmd = escapeshellcmd($config['commands']['jps-audit']) . ' --save';
+
+    log_action('save_audit_snapshot', 'Audit snapshot saved');
+
+    return execute_command($cmd);
+}
+
+/**
+ * Compare drift (audit diff)
+ */
+function cmd_compare_drift(): array
+{
+    $config = get_config();
+    $cmd = escapeshellcmd($config['commands']['jps-audit']) . ' --diff';
+
+    log_action('compare_drift', 'Audit drift comparison');
 
     return execute_command($cmd);
 }

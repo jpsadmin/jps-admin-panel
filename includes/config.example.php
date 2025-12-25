@@ -52,6 +52,7 @@ return [
         'jps-site-archive' => '/usr/local/bin/jps-site-archive',
         'jps-site-delete' => '/usr/local/bin/jps-site-delete',
         'jps-backup-verify' => '/usr/local/bin/jps-backup-verify',
+        'jps-deploy-site' => '/usr/local/bin/jps-deploy-site',
         'lswsctrl' => '/usr/local/lsws/bin/lswsctrl',
         'git' => '/usr/bin/git',
         'chown' => '/usr/bin/chown',

@@ -82,6 +82,7 @@ switch ($action) {
         break;
 
     case 'create_checkpoint':
+        set_time_limit(300); // 5 minute timeout for checkpoint creation
         $domain = $input['domain'] ?? '';
         $result = cmd_create_checkpoint($domain);
         json_response($result);
@@ -145,6 +146,23 @@ switch ($action) {
     case 'get_csrf_token':
         // Refresh CSRF token
         json_response(['success' => true, 'token' => generate_csrf_token()]);
+        break;
+
+    case 'deploy_site':
+        set_time_limit(300); // 5 minute timeout for site deployment
+        $domain = $input['domain'] ?? '';
+        $result = cmd_deploy_site($domain);
+        json_response($result);
+        break;
+
+    case 'save_audit_snapshot':
+        $result = cmd_save_audit_snapshot();
+        json_response($result);
+        break;
+
+    case 'compare_drift':
+        $result = cmd_compare_drift();
+        json_response($result);
         break;
 
     default:

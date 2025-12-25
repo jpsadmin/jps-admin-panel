@@ -124,6 +124,7 @@ www-data ALL=(ALL) NOPASSWD: /usr/local/bin/jps-site-suspend
 www-data ALL=(ALL) NOPASSWD: /usr/local/bin/jps-site-archive
 www-data ALL=(ALL) NOPASSWD: /usr/local/bin/jps-site-delete
 www-data ALL=(ALL) NOPASSWD: /usr/local/bin/jps-backup-verify
+www-data ALL=(ALL) NOPASSWD: /usr/local/bin/jps-deploy-site
 
 # OpenLiteSpeed control
 www-data ALL=(ALL) NOPASSWD: /usr/local/lsws/bin/lswsctrl
@@ -134,8 +135,10 @@ www-data ALL=(ALL) NOPASSWD: /usr/bin/git -C /opt/jps-server-tools pull
 # Permission fixes for websites (restricted to specific path pattern)
 www-data ALL=(ALL) NOPASSWD: /usr/bin/chown -R nobody\:nogroup /usr/local/websites/*/html/
 
-# Read credentials files
+# Read credentials files (root-owned with 600 permissions)
+www-data ALL=(ALL) NOPASSWD: /usr/bin/cat /usr/local/websites/*/CREDENTIALS.txt
 www-data ALL=(ALL) NOPASSWD: /usr/bin/cat /usr/local/websites/*/.credentials
+www-data ALL=(ALL) NOPASSWD: /usr/bin/test -f /usr/local/websites/*
 
 # Read log files
 www-data ALL=(ALL) NOPASSWD: /usr/bin/tail -n * /usr/local/websites/*/logs/*

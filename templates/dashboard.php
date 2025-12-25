@@ -103,6 +103,14 @@ defined('JPS_ADMIN') or die('Direct access not permitted');
                     <span class="action-icon">&#x1F504;</span>
                     <span class="action-label">Pull Git Updates</span>
                 </button>
+                <button type="button" class="action-btn" id="btn-save-snapshot" data-action="save_snapshot">
+                    <span class="action-icon">&#x1F4BE;</span>
+                    <span class="action-label">Save Audit Snapshot</span>
+                </button>
+                <button type="button" class="action-btn" id="btn-compare-drift" data-action="compare_drift">
+                    <span class="action-icon">&#x1F50D;</span>
+                    <span class="action-label">Compare Drift</span>
+                </button>
             </div>
         </div>
     </section>
@@ -119,6 +127,13 @@ defined('JPS_ADMIN') or die('Direct access not permitted');
                 Sites
             </h2>
             <div class="panel-actions">
+                <button type="button" class="btn btn-sm btn-primary" id="btn-deploy-site" title="Deploy New Site">
+                    <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <line x1="12" y1="5" x2="12" y2="19"></line>
+                        <line x1="5" y1="12" x2="19" y2="12"></line>
+                    </svg>
+                    Deploy Site
+                </button>
                 <button type="button" class="btn btn-sm btn-secondary" id="btn-refresh-sites" title="Refresh Sites">
                     <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <polyline points="23 4 23 10 17 10"></polyline>

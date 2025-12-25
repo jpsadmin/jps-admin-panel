@@ -727,6 +727,108 @@
         showModal('Git Pull Result', `<pre>${ansiToHtml(result.output || 'Already up to date')}</pre>`);
     }
 
+    /**
+     * Show deploy site modal
+     */
+    function showDeploySiteModal() {
+        const content = `
+            <div class="deploy-site-form">
+                <div class="form-group">
+                    <label for="deploy-domain-input">Domain Name:</label>
+                    <input type="text" id="deploy-domain-input" placeholder="example.com" autocomplete="off">
+                    <small>Enter the domain name for the new site (e.g., example.com)</small>
+                </div>
+
+                <div class="dialog-actions">
+                    <button type="button" class="btn btn-secondary btn-cancel">Cancel</button>
+                    <button type="button" class="btn btn-primary btn-deploy-confirm">
+                        Deploy Site
+                    </button>
+                </div>
+            </div>
+        `;
+
+        showModal('Deploy New Site', content);
+
+        // Attach event listeners
+        const input = document.getElementById('deploy-domain-input');
+        const deployBtn = document.querySelector('.btn-deploy-confirm');
+        const cancelBtn = document.querySelector('.btn-cancel');
+
+        cancelBtn.addEventListener('click', hideModal);
+
+        deployBtn.addEventListener('click', async () => {
+            const domain = input.value.trim();
+            if (!domain) {
+                showToast('Please enter a domain name', 'warning');
+                return;
+            }
+
+            hideModal();
+            showLoading('Deploying site...');
+
+            const result = await api('deploy_site', { domain: domain });
+
+            hideLoading();
+
+            if (!result || !result.success) {
+                showToast('Failed to deploy site: ' + (result?.error || 'Unknown error'), 'error');
+                return;
+            }
+
+            showToast('Site deployed successfully', 'success');
+            showModal('Deploy Result', `<pre>${ansiToHtml(result.output || 'Site deployed')}</pre>`);
+            loadSites();
+        });
+
+        // Allow Enter key to submit
+        input.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                deployBtn.click();
+            }
+        });
+
+        // Focus the input
+        input.focus();
+    }
+
+    /**
+     * Save audit snapshot
+     */
+    async function saveAuditSnapshot() {
+        showLoading('Saving audit snapshot...');
+
+        const result = await api('save_audit_snapshot');
+
+        hideLoading();
+
+        if (!result || !result.success) {
+            showToast('Failed to save snapshot: ' + (result?.error || 'Unknown error'), 'error');
+            return;
+        }
+
+        showToast('Audit snapshot saved successfully', 'success');
+        showModal('Snapshot Result', `<pre>${ansiToHtml(result.output || 'Snapshot saved')}</pre>`);
+    }
+
+    /**
+     * Compare drift
+     */
+    async function compareDrift() {
+        showLoading('Comparing configuration drift...');
+
+        const result = await api('compare_drift');
+
+        hideLoading();
+
+        if (!result || !result.success) {
+            showToast('Failed to compare drift: ' + (result?.error || 'Unknown error'), 'error');
+            return;
+        }
+
+        showModal('Configuration Drift', `<pre>${ansiToHtml(result.output || 'No drift detected')}</pre>`);
+    }
+
     // ============================================
     // Auto Refresh
     // ============================================
@@ -778,6 +880,9 @@
         document.getElementById('btn-restart-ols')?.addEventListener('click', restartOLS);
         document.getElementById('btn-run-audit')?.addEventListener('click', showFullAudit);
         document.getElementById('btn-git-pull')?.addEventListener('click', gitPull);
+        document.getElementById('btn-deploy-site')?.addEventListener('click', showDeploySiteModal);
+        document.getElementById('btn-save-snapshot')?.addEventListener('click', saveAuditSnapshot);
+        document.getElementById('btn-compare-drift')?.addEventListener('click', compareDrift);
 
         // Modal close handlers
         document.querySelector('.modal-close')?.addEventListener('click', hideModal);

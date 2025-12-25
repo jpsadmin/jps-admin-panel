@@ -215,16 +215,21 @@ function parse_audit_brief(string $output): array
             $data['disk']['total'] = $m[2];
         }
 
-        // Parse service statuses
+        // Parse service statuses - check for positive indicators (running/active/ok/checkmarks)
+        // and negative indicators (stopped/inactive/failed/error/✗/✕)
         $line_lower = strtolower($line);
+        $is_running = preg_match('/(running|active|✓|✔|\[ok\]|\bup\b)/ui', $line) === 1;
+        $is_stopped = preg_match('/(stopped|inactive|failed|error|✗|✕|down)/ui', $line) === 1;
+        $service_status = $is_running && !$is_stopped;
+
         if (strpos($line_lower, 'openlitespeed') !== false || strpos($line_lower, 'ols') !== false || strpos($line_lower, 'lsws') !== false) {
-            $data['services']['ols'] = preg_match('/(running|active|ok|✓|✔)/i', $line) === 1;
+            $data['services']['ols'] = $service_status;
         }
         if (strpos($line_lower, 'mariadb') !== false || strpos($line_lower, 'mysql') !== false) {
-            $data['services']['mariadb'] = preg_match('/(running|active|ok|✓|✔)/i', $line) === 1;
+            $data['services']['mariadb'] = $service_status;
         }
         if (strpos($line_lower, 'fail2ban') !== false) {
-            $data['services']['fail2ban'] = preg_match('/(running|active|ok|✓|✔)/i', $line) === 1;
+            $data['services']['fail2ban'] = $service_status;
         }
     }
 
