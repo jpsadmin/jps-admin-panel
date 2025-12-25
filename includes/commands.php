@@ -295,15 +295,37 @@ function cmd_get_site_logs(string $domain, int $lines = 100): array
 /**
  * Get lifecycle log entries
  */
-function cmd_get_lifecycle_log(int $lines = 10): array
+function cmd_get_lifecycle_log(int $limit = 20): array
 {
-    $config = get_config();
-    $log_file = $config['lifecycle_log'];
+    $log_dir = '/opt/jps-server-tools/logs/lifecycle';
+    $all_entries = [];
 
-    $lines = min(max(5, $lines), 100); // Limit to 5-100 lines
-    $cmd = 'tail -n ' . (int)$lines . ' ' . escapeshellarg($log_file);
+    // Read all log files in the lifecycle directory
+    if (is_dir($log_dir)) {
+        $files = glob($log_dir . '/*.log');
+        foreach ($files as $file) {
+            $lines = file($file, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
+            if ($lines) {
+                $all_entries = array_merge($all_entries, $lines);
+            }
+        }
+    }
 
-    return execute_command($cmd, false); // No sudo needed for readable log
+    // Sort by timestamp descending (entries start with [YYYY-MM-DD HH:MM:SS])
+    usort($all_entries, function($a, $b) {
+        preg_match('/\[([^\]]+)\]/', $a, $ma);
+        preg_match('/\[([^\]]+)\]/', $b, $mb);
+        return strcmp($mb[1] ?? '', $ma[1] ?? '');
+    });
+
+    // Limit entries
+    $entries = array_slice($all_entries, 0, min(max(5, $limit), 100));
+
+    return [
+        'success' => true,
+        'output' => implode("\n", $entries),
+        'entries' => $entries,
+    ];
 }
 
 /**
