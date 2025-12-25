@@ -189,8 +189,8 @@ function parse_audit_brief(string $output): array
     $lines = explode("\n", strip_ansi($output));
 
     foreach ($lines as $line) {
-        // Parse CPU usage
-        if (preg_match('/CPU[:\s]+(\d+(?:\.\d+)?)\s*%/i', $line, $m)) {
+        // Parse CPU usage - handle formats like "CPU Usage: 0.0%" or "CPU: 5%"
+        if (preg_match('/CPU(?:\s+Usage)?[:\s]+(\d+(?:\.\d+)?)\s*%/i', $line, $m)) {
             $data['cpu']['usage'] = (float)$m[1];
             $data['cpu']['status'] = get_status_level($data['cpu']['usage']);
         }
@@ -218,8 +218,16 @@ function parse_audit_brief(string $output): array
         // Parse service statuses - check for positive indicators (running/active/ok/checkmarks)
         // and negative indicators (stopped/inactive/failed/error/✗/✕)
         $line_lower = strtolower($line);
-        $is_running = preg_match('/(running|active|✓|✔|\[ok\]|\bup\b)/ui', $line) === 1;
-        $is_stopped = preg_match('/(stopped|inactive|failed|error|✗|✕|down)/ui', $line) === 1;
+
+        // Check for positive status indicators (case-insensitive)
+        $is_running = preg_match('/\b(running|active|ok|up)\b/i', $line) === 1
+                   || preg_match('/[✓✔]/u', $line) === 1;
+
+        // Check for negative status indicators (case-insensitive)
+        $is_stopped = preg_match('/\b(stopped|inactive|failed|error|down|dead)\b/i', $line) === 1
+                   || preg_match('/[✗✕]/u', $line) === 1;
+
+        // Service is running if positive indicator found and no negative indicator
         $service_status = $is_running && !$is_stopped;
 
         if (strpos($line_lower, 'openlitespeed') !== false || strpos($line_lower, 'ols') !== false || strpos($line_lower, 'lsws') !== false) {

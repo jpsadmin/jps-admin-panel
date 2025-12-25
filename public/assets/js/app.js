@@ -356,6 +356,7 @@
                         ${suspendBtn}
                         <button type="button" class="btn-icon btn-archive" data-domain="${escapeHtml(site.domain)}" title="Archive Site">📦</button>
                         <button type="button" class="btn-icon btn-logs" data-domain="${escapeHtml(site.domain)}" title="View Logs">📁</button>
+                        <a href="https://${escapeHtml(site.domain)}/wp-admin/" target="_blank" rel="noopener noreferrer" class="btn-icon btn-wp-admin" title="WordPress Admin">🔗</a>
                         <button type="button" class="btn-icon btn-delete btn-danger" data-domain="${escapeHtml(site.domain)}" title="Delete Site">🗑️</button>
                     </div>
                 </td>
@@ -802,13 +803,24 @@
 
         hideLoading();
 
-        if (!result || !result.success) {
-            showToast('Failed to save snapshot: ' + (result?.error || 'Unknown error'), 'error');
+        if (!result) {
+            showToast('Failed to save snapshot: Network error', 'error');
             return;
         }
 
-        showToast('Audit snapshot saved successfully', 'success');
-        showModal('Snapshot Result', `<pre>${ansiToHtml(result.output || 'Snapshot saved')}</pre>`);
+        // Show modal if we have output, even if command returned non-zero exit code
+        // (jps-audit --save may return exit code 5 due to jq parse errors but still work)
+        if (result.output) {
+            if (result.success) {
+                showToast('Audit snapshot saved successfully', 'success');
+            }
+            showModal('Snapshot Result', `<pre>${ansiToHtml(result.output)}</pre>`);
+        } else if (!result.success) {
+            showToast('Failed to save snapshot: ' + (result.error || 'Unknown error'), 'error');
+        } else {
+            showToast('Audit snapshot saved successfully', 'success');
+            showModal('Snapshot Result', `<pre>Snapshot saved successfully</pre>`);
+        }
     }
 
     /**
@@ -821,12 +833,19 @@
 
         hideLoading();
 
-        if (!result || !result.success) {
-            showToast('Failed to compare drift: ' + (result?.error || 'Unknown error'), 'error');
+        if (!result) {
+            showToast('Failed to compare drift: Network error', 'error');
             return;
         }
 
-        showModal('Configuration Drift', `<pre>${ansiToHtml(result.output || 'No drift detected')}</pre>`);
+        // Show modal if we have output, even if command returned non-zero exit code
+        if (result.output) {
+            showModal('Configuration Drift', `<pre>${ansiToHtml(result.output)}</pre>`);
+        } else if (!result.success) {
+            showToast('Failed to compare drift: ' + (result.error || 'Unknown error'), 'error');
+        } else {
+            showModal('Configuration Drift', `<pre>No drift detected</pre>`);
+        }
     }
 
     // ============================================
