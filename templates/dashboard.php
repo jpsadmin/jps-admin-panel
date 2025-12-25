@@ -111,6 +111,10 @@ defined('JPS_ADMIN') or die('Direct access not permitted');
                     <span class="action-icon">&#x1F50D;</span>
                     <span class="action-label">Compare Drift</span>
                 </button>
+                <a href="/filemanager.php" class="action-btn" target="_blank" style="text-decoration: none;">
+                    <span class="action-icon">&#x1F4C1;</span>
+                    <span class="action-label">File Manager</span>
+                </a>
             </div>
         </div>
     </section>
