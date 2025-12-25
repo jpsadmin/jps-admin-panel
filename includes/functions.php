@@ -241,6 +241,10 @@ function parse_audit_brief(string $output): array
         }
     }
 
+    // Direct service status check for fail2ban (since --brief doesn't include it)
+    $fail2ban_status = trim(shell_exec('systemctl is-active fail2ban 2>/dev/null') ?? '');
+    $data['services']['fail2ban'] = ($fail2ban_status === 'active');
+
     return $data;
 }
 
