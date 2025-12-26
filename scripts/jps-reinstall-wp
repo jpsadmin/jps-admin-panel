@@ -378,6 +378,12 @@ reinstall_wordpress() {
     log "INFO" "Creating wp-config.php..."
     create_wp_config
 
+    # Create .htaccess for permalinks
+    create_htaccess
+
+    # Check and fix missing theme
+    fix_missing_theme
+
     # Set permissions
     log "INFO" "Setting file permissions..."
     chown -R "$WEB_USER:$WEB_GROUP" "$site_path"
@@ -430,6 +436,99 @@ WPCONFIG
 
     chmod 640 "$wp_config"
     chown "$WEB_USER:$WEB_GROUP" "$wp_config"
+}
+
+create_htaccess() {
+    local site_path="$WEBSITES_ROOT/$DOMAIN/html"
+    local htaccess="$site_path/.htaccess"
+
+    log "INFO" "Creating .htaccess for WordPress permalinks..."
+
+    cat > "$htaccess" << 'HTACCESS'
+# BEGIN WordPress
+<IfModule mod_rewrite.c>
+RewriteEngine On
+RewriteRule .* - [E=HTTP_AUTHORIZATION:%{HTTP:Authorization}]
+RewriteBase /
+RewriteRule ^index\.php$ - [L]
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteRule . /index.php [L]
+</IfModule>
+# END WordPress
+HTACCESS
+
+    chmod 644 "$htaccess"
+    chown "$WEB_USER:$WEB_GROUP" "$htaccess"
+
+    log "SUCCESS" ".htaccess created for WordPress permalinks"
+}
+
+fix_missing_theme() {
+    local site_path="$WEBSITES_ROOT/$DOMAIN/html"
+    local themes_dir="$site_path/wp-content/themes"
+
+    log "INFO" "Checking theme configuration..."
+
+    # Get current theme from database (template and stylesheet options)
+    local current_template=$(mysql -u "$DB_USER" -p"$DB_PASSWORD" -h "$DB_HOST" -N -e \
+        "SELECT option_value FROM ${DB_NAME}.${TABLE_PREFIX}options WHERE option_name = 'template';" 2>/dev/null || echo "")
+    local current_stylesheet=$(mysql -u "$DB_USER" -p"$DB_PASSWORD" -h "$DB_HOST" -N -e \
+        "SELECT option_value FROM ${DB_NAME}.${TABLE_PREFIX}options WHERE option_name = 'stylesheet';" 2>/dev/null || echo "")
+
+    log "INFO" "Current theme in database: template='$current_template', stylesheet='$current_stylesheet'"
+
+    # Check if the current theme exists
+    local theme_exists=false
+    if [[ -n "$current_template" ]] && [[ -d "$themes_dir/$current_template" ]]; then
+        theme_exists=true
+    fi
+
+    if [[ "$theme_exists" == "true" ]]; then
+        log "INFO" "Theme '$current_template' exists in themes directory"
+        return 0
+    fi
+
+    log "WARNING" "Theme '$current_template' not found in themes directory"
+
+    # Find an available default theme (prefer twentytwentyfive, then other twenty* themes)
+    local default_theme=""
+    local preferred_themes=("twentytwentyfive" "twentytwentyfour" "twentytwentythree" "twentytwentytwo" "twentytwentyone" "twentytwenty")
+
+    for theme in "${preferred_themes[@]}"; do
+        if [[ -d "$themes_dir/$theme" ]]; then
+            default_theme="$theme"
+            break
+        fi
+    done
+
+    # If no preferred theme found, use any available theme
+    if [[ -z "$default_theme" ]]; then
+        for theme_dir in "$themes_dir"/*/; do
+            if [[ -d "$theme_dir" ]]; then
+                default_theme=$(basename "$theme_dir")
+                break
+            fi
+        done
+    fi
+
+    if [[ -z "$default_theme" ]]; then
+        log "ERROR" "No themes found in $themes_dir - WordPress will have issues!"
+        return 1
+    fi
+
+    log "INFO" "Updating database to use default theme: $default_theme"
+
+    # Update both template and stylesheet options in the database
+    mysql -u "$DB_USER" -p"$DB_PASSWORD" -h "$DB_HOST" -e \
+        "UPDATE ${DB_NAME}.${TABLE_PREFIX}options SET option_value = '$default_theme' WHERE option_name = 'template';" 2>/dev/null
+
+    mysql -u "$DB_USER" -p"$DB_PASSWORD" -h "$DB_HOST" -e \
+        "UPDATE ${DB_NAME}.${TABLE_PREFIX}options SET option_value = '$default_theme' WHERE option_name = 'stylesheet';" 2>/dev/null
+
+    log "SUCCESS" "Theme updated from '$current_template' to '$default_theme'"
+
+    return 0
 }
 
 generate_local_salts() {
