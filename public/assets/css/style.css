@@ -477,8 +477,8 @@ a:hover {
    Quick Actions Panel
    ============================================ */
 .actions-grid {
-    display: flex;
-    flex-direction: column;
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
     gap: var(--spacing-sm);
 }
 
@@ -499,7 +499,14 @@ a:hover {
 .action-btn:hover {
     background: rgba(0, 212, 255, 0.1);
     border-color: var(--accent-primary);
-    transform: translateX(4px);
+    transform: translateY(-2px);
+}
+
+/* Responsive: Stack to single column on small screens */
+@media (max-width: 480px) {
+    .actions-grid {
+        grid-template-columns: 1fr;
+    }
 }
 
 .action-icon {
