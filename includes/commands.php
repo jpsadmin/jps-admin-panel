@@ -430,3 +430,134 @@ function cmd_compare_drift(): array
 
     return execute_command($cmd);
 }
+
+/**
+ * Get site information for reinstall modal
+ */
+function cmd_get_site_info(string $domain): array
+{
+    $domain = validate_domain($domain);
+    if (!$domain) {
+        return ['success' => false, 'error' => 'Invalid domain'];
+    }
+
+    $config = get_config();
+    $site_path = $config['websites_root'] . '/' . $domain . '/html';
+
+    $data = [
+        'wp_version' => 'Unknown',
+        'site_size' => 'Unknown',
+        'uploads_size' => 'Unknown',
+        'db_size' => 'Unknown',
+    ];
+
+    // Get WordPress version
+    $version_file = $site_path . '/wp-includes/version.php';
+    if (file_exists($version_file)) {
+        $version_content = file_get_contents($version_file);
+        if (preg_match("/\\\$wp_version\\s*=\\s*'([^']+)'/", $version_content, $matches)) {
+            $data['wp_version'] = $matches[1];
+        }
+    }
+
+    // Get site size
+    $result = execute_command('/usr/bin/du -sh ' . escapeshellarg($site_path) . ' 2>/dev/null | cut -f1');
+    if ($result['success'] && !empty(trim($result['output']))) {
+        $data['site_size'] = trim($result['output']);
+    }
+
+    // Get uploads size
+    $uploads_path = $site_path . '/wp-content/uploads';
+    $result = execute_command('/usr/bin/du -sh ' . escapeshellarg($uploads_path) . ' 2>/dev/null | cut -f1');
+    if ($result['success'] && !empty(trim($result['output']))) {
+        $data['uploads_size'] = trim($result['output']);
+    }
+
+    // Get database info from wp-config.php
+    $wp_config = $site_path . '/wp-config.php';
+    if (file_exists($wp_config)) {
+        $config_content = file_get_contents($wp_config);
+
+        // Extract DB credentials
+        $db_name = '';
+        $db_user = '';
+        $db_password = '';
+        $db_host = 'localhost';
+
+        if (preg_match("/define\\s*\\(\\s*['\"]DB_NAME['\"]\\s*,\\s*['\"]([^'\"]+)['\"]/", $config_content, $m)) {
+            $db_name = $m[1];
+        }
+        if (preg_match("/define\\s*\\(\\s*['\"]DB_USER['\"]\\s*,\\s*['\"]([^'\"]+)['\"]/", $config_content, $m)) {
+            $db_user = $m[1];
+        }
+        if (preg_match("/define\\s*\\(\\s*['\"]DB_PASSWORD['\"]\\s*,\\s*['\"]([^'\"]+)['\"]/", $config_content, $m)) {
+            $db_password = $m[1];
+        }
+        if (preg_match("/define\\s*\\(\\s*['\"]DB_HOST['\"]\\s*,\\s*['\"]([^'\"]+)['\"]/", $config_content, $m)) {
+            $db_host = $m[1];
+        }
+
+        // Get database size
+        if (!empty($db_name) && !empty($db_user)) {
+            $mysql_cmd = sprintf(
+                'mysql -u %s -p%s -h %s -N -e "SELECT ROUND(SUM(data_length + index_length) / 1024 / 1024, 2) FROM information_schema.tables WHERE table_schema = %s;" 2>/dev/null',
+                escapeshellarg($db_user),
+                escapeshellarg($db_password),
+                escapeshellarg($db_host),
+                escapeshellarg($db_name)
+            );
+            $result = execute_command($mysql_cmd, false);
+            if ($result['success'] && !empty(trim($result['output']))) {
+                $size = trim($result['output']);
+                if (is_numeric($size)) {
+                    $data['db_size'] = $size . ' MB';
+                }
+            }
+        }
+    }
+
+    return [
+        'success' => true,
+        'data' => $data,
+    ];
+}
+
+/**
+ * Reinstall WordPress
+ */
+function cmd_reinstall_wordpress(string $domain, bool $preserve_uploads = true): array
+{
+    $domain = validate_domain($domain);
+    if (!$domain) {
+        return ['success' => false, 'error' => 'Invalid domain'];
+    }
+
+    $config = get_config();
+
+    // Build command with options
+    $cmd = escapeshellcmd($config['commands']['jps-reinstall-wp']) . ' ' . escapeshellarg($domain);
+    $cmd .= ' --force --json';
+
+    if ($preserve_uploads) {
+        $cmd .= ' --preserve-uploads';
+    }
+
+    log_action('reinstall_wordpress', $domain . ($preserve_uploads ? ' (preserving uploads)' : ''));
+
+    $result = execute_command($cmd);
+
+    // Parse JSON output if successful
+    if (!empty($result['output'])) {
+        $json = json_decode($result['output'], true);
+        if ($json !== null) {
+            return [
+                'success' => $json['success'] ?? false,
+                'error' => $json['message'] ?? null,
+                'data' => $json['data'] ?? [],
+                'output' => $result['output'],
+            ];
+        }
+    }
+
+    return $result;
+}

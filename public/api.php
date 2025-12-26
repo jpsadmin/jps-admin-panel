@@ -165,6 +165,20 @@ switch ($action) {
         json_response($result);
         break;
 
+    case 'get_site_info':
+        $domain = $input['domain'] ?? '';
+        $result = cmd_get_site_info($domain);
+        json_response($result);
+        break;
+
+    case 'reinstall_wordpress':
+        set_time_limit(600); // 10 minute timeout for reinstall
+        $domain = $input['domain'] ?? '';
+        $preserve_uploads = $input['preserve_uploads'] ?? true;
+        $result = cmd_reinstall_wordpress($domain, $preserve_uploads);
+        json_response($result);
+        break;
+
     default:
         json_response(['success' => false, 'error' => 'Unknown action'], 400);
 }

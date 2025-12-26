@@ -99,7 +99,7 @@ else
 fi
 
 # Set permissions
-echo -e "${CYAN}[5/7]${NC} Setting permissions..."
+echo -e "${CYAN}[5/8]${NC} Setting permissions..."
 
 chown -R $WEB_USER:$WEB_USER "$INSTALL_DIR"
 chmod -R 750 "$INSTALL_DIR"
@@ -109,8 +109,23 @@ chmod 770 "$INSTALL_DIR/logs"
 
 echo -e "${GREEN}✓${NC} Permissions set"
 
+# Install CLI scripts
+echo -e "${CYAN}[6/8]${NC} Installing CLI scripts..."
+
+if [[ -f "$SCRIPT_DIR/scripts/jps-reinstall-wp" ]]; then
+    cp "$SCRIPT_DIR/scripts/jps-reinstall-wp" /usr/local/bin/jps-reinstall-wp
+    chmod 755 /usr/local/bin/jps-reinstall-wp
+    echo -e "${GREEN}✓${NC} Installed jps-reinstall-wp to /usr/local/bin/"
+else
+    echo -e "${YELLOW}Warning: jps-reinstall-wp script not found in scripts/${NC}"
+fi
+
+# Create backup directory
+mkdir -p /var/backups/jps-sites
+chmod 750 /var/backups/jps-sites
+
 # Create sudoers file
-echo -e "${CYAN}[6/7]${NC} Configuring sudo permissions..."
+echo -e "${CYAN}[7/8]${NC} Configuring sudo permissions..."
 
 cat > "$SUDOERS_FILE" << 'EOF'
 # JPS Admin Panel - Sudo permissions for www-data
@@ -125,6 +140,7 @@ www-data ALL=(ALL) NOPASSWD: /usr/local/bin/jps-site-archive
 www-data ALL=(ALL) NOPASSWD: /usr/local/bin/jps-site-delete
 www-data ALL=(ALL) NOPASSWD: /usr/local/bin/jps-backup-verify
 www-data ALL=(ALL) NOPASSWD: /usr/local/bin/jps-deploy-site
+www-data ALL=(ALL) NOPASSWD: /usr/local/bin/jps-reinstall-wp
 
 # OpenLiteSpeed control
 www-data ALL=(ALL) NOPASSWD: /usr/local/lsws/bin/lswsctrl
@@ -158,7 +174,7 @@ else
 fi
 
 # Create .htaccess for security
-echo -e "${CYAN}[7/7]${NC} Creating security files..."
+echo -e "${CYAN}[8/8]${NC} Creating security files..."
 
 # Root .htaccess (deny all, allow public)
 cat > "$INSTALL_DIR/.htaccess" << 'EOF'

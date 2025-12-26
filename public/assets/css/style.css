@@ -1270,3 +1270,252 @@ a:hover {
 .mb-md {
     margin-bottom: var(--spacing-md);
 }
+
+/* ============================================
+   Reinstall WordPress Modal
+   ============================================ */
+.reinstall-modal {
+    padding: var(--spacing-sm);
+}
+
+.reinstall-modal .warning-severe {
+    background: linear-gradient(135deg, rgba(255, 68, 68, 0.15), rgba(255, 153, 0, 0.15));
+    border-color: var(--warning);
+}
+
+.reinstall-modal .site-info-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: var(--spacing-sm);
+    margin: var(--spacing-md) 0;
+    padding: var(--spacing-md);
+    background: rgba(0, 0, 0, 0.2);
+    border-radius: var(--radius-md);
+}
+
+.reinstall-modal .info-item {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.reinstall-modal .info-label {
+    color: var(--text-muted);
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.reinstall-modal .info-value {
+    color: var(--text-primary);
+    font-size: 0.9375rem;
+    font-weight: 500;
+}
+
+.reinstall-modal .reinstall-actions {
+    margin: var(--spacing-md) 0;
+}
+
+.reinstall-modal .reinstall-actions h4 {
+    color: var(--text-secondary);
+    font-size: 0.875rem;
+    margin-bottom: var(--spacing-sm);
+}
+
+.reinstall-modal .action-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.reinstall-modal .action-list li {
+    padding: var(--spacing-xs) 0;
+    font-size: 0.875rem;
+}
+
+.reinstall-modal .action-danger {
+    color: var(--danger);
+}
+
+.reinstall-modal .action-success {
+    color: var(--success);
+}
+
+.reinstall-modal .checkbox-label {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+    cursor: pointer;
+    color: var(--text-secondary);
+}
+
+.reinstall-modal .checkbox-label input[type="checkbox"] {
+    width: 18px;
+    height: 18px;
+    accent-color: var(--accent-primary);
+}
+
+.reinstall-modal .preserve-status {
+    text-align: center;
+    padding: var(--spacing-md);
+    margin: var(--spacing-md) 0;
+    background: rgba(0, 0, 0, 0.2);
+    border-radius: var(--radius-md);
+    font-size: 0.9375rem;
+}
+
+.reinstall-modal .preserve-status .status-ok {
+    color: var(--success);
+}
+
+.reinstall-modal .preserve-status .status-warning {
+    color: var(--warning);
+}
+
+/* Progress state */
+.reinstall-modal.reinstall-progress {
+    text-align: center;
+    padding: var(--spacing-xl);
+}
+
+.reinstall-modal .progress-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: var(--spacing-lg);
+    margin: var(--spacing-xl) 0;
+}
+
+.reinstall-modal .spinner-large {
+    width: 48px;
+    height: 48px;
+    border: 3px solid rgba(0, 212, 255, 0.2);
+    border-top-color: var(--accent-primary);
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
+.reinstall-modal .progress-note {
+    color: var(--text-muted);
+    font-size: 0.875rem;
+}
+
+/* Success state */
+.reinstall-modal.reinstall-success .success-banner {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+    padding: var(--spacing-md);
+    background: linear-gradient(135deg, rgba(0, 255, 136, 0.1), rgba(0, 212, 255, 0.1));
+    border: 1px solid var(--success);
+    border-radius: var(--radius-md);
+    margin-bottom: var(--spacing-lg);
+}
+
+.reinstall-modal .success-icon {
+    font-size: 1.5rem;
+    color: var(--success);
+}
+
+.reinstall-modal .result-info {
+    background: rgba(0, 0, 0, 0.2);
+    padding: var(--spacing-md);
+    border-radius: var(--radius-md);
+    margin-bottom: var(--spacing-md);
+}
+
+.reinstall-modal .result-info p {
+    margin: var(--spacing-xs) 0;
+    font-size: 0.875rem;
+}
+
+.reinstall-modal .next-steps {
+    text-align: left;
+    margin: var(--spacing-md) 0;
+}
+
+.reinstall-modal .next-steps h4 {
+    color: var(--text-secondary);
+    font-size: 0.875rem;
+    margin-bottom: var(--spacing-sm);
+}
+
+.reinstall-modal .next-steps ol {
+    padding-left: var(--spacing-lg);
+    margin: 0;
+}
+
+.reinstall-modal .next-steps li {
+    padding: var(--spacing-xs) 0;
+    font-size: 0.875rem;
+    color: var(--text-secondary);
+}
+
+.reinstall-modal .next-steps a {
+    color: var(--accent-primary);
+    text-decoration: none;
+}
+
+.reinstall-modal .next-steps a:hover {
+    text-decoration: underline;
+}
+
+/* Error state */
+.reinstall-modal.reinstall-error .error-banner {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+    padding: var(--spacing-md);
+    background: linear-gradient(135deg, rgba(255, 68, 68, 0.1), rgba(255, 68, 68, 0.05));
+    border: 1px solid var(--danger);
+    border-radius: var(--radius-md);
+    margin-bottom: var(--spacing-lg);
+}
+
+.reinstall-modal .error-icon {
+    font-size: 1.5rem;
+    color: var(--danger);
+}
+
+.reinstall-modal .error-message {
+    color: var(--danger);
+    font-weight: 500;
+    margin-bottom: var(--spacing-md);
+}
+
+.reinstall-modal .error-output {
+    background: rgba(0, 0, 0, 0.3);
+    padding: var(--spacing-md);
+    border-radius: var(--radius-md);
+    font-family: var(--font-mono);
+    font-size: 0.75rem;
+    max-height: 150px;
+    overflow-y: auto;
+    color: var(--text-muted);
+}
+
+.reinstall-modal .recovery-note {
+    color: var(--text-muted);
+    font-size: 0.875rem;
+    font-style: italic;
+}
+
+/* Warning button style */
+.btn-warning {
+    background: linear-gradient(135deg, var(--warning), #e69500);
+    color: var(--bg-primary);
+}
+
+.btn-warning:hover {
+    background: linear-gradient(135deg, #ffb31a, #cc8400);
+    transform: translateY(-1px);
+}
+
+.btn-icon.btn-warning {
+    background: rgba(255, 153, 0, 0.1);
+    color: var(--warning);
+}
+
+.btn-icon.btn-warning:hover {
+    background: rgba(255, 153, 0, 0.2);
+}

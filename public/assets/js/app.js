@@ -357,6 +357,7 @@
                         <button type="button" class="btn-icon btn-archive" data-domain="${escapeHtml(site.domain)}" title="Archive Site">📦</button>
                         <button type="button" class="btn-icon btn-logs" data-domain="${escapeHtml(site.domain)}" title="View Logs">📁</button>
                         <a href="https://${escapeHtml(site.domain)}/wp-admin/" target="_blank" rel="noopener noreferrer" class="btn-icon btn-wp-admin" title="WordPress Admin">🔗</a>
+                        <button type="button" class="btn-icon btn-reinstall btn-warning" data-domain="${escapeHtml(site.domain)}" title="Reinstall WordPress">🔄</button>
                         <button type="button" class="btn-icon btn-delete btn-danger" data-domain="${escapeHtml(site.domain)}" title="Delete Site">🗑️</button>
                     </div>
                 </td>
@@ -396,6 +397,11 @@
         // Logs
         document.querySelectorAll('.btn-logs').forEach(btn => {
             btn.addEventListener('click', () => showSiteLogs(btn.dataset.domain));
+        });
+
+        // Reinstall WordPress
+        document.querySelectorAll('.btn-reinstall').forEach(btn => {
+            btn.addEventListener('click', () => showReinstallModal(btn.dataset.domain));
         });
 
         // Delete
@@ -643,6 +649,355 @@
 
             showToast('Site deleted successfully', 'success');
             loadSites();
+        });
+    }
+
+    // ============================================
+    // Reinstall WordPress Modal
+    // ============================================
+
+    /**
+     * Current reinstall state
+     */
+    let reinstallState = {
+        domain: '',
+        step: 1,
+        preserveUploads: true,
+        siteInfo: null
+    };
+
+    /**
+     * Show reinstall WordPress modal
+     */
+    async function showReinstallModal(domain) {
+        reinstallState = {
+            domain: domain,
+            step: 1,
+            preserveUploads: true,
+            siteInfo: null
+        };
+
+        // First, get site info
+        showLoading('Loading site information...');
+        const result = await api('get_site_info', { domain: domain });
+        hideLoading();
+
+        if (result && result.success) {
+            reinstallState.siteInfo = result.data;
+        } else {
+            reinstallState.siteInfo = {
+                wp_version: 'Unknown',
+                site_size: 'Unknown',
+                uploads_size: 'Unknown',
+                db_size: 'Unknown'
+            };
+        }
+
+        renderReinstallStep();
+    }
+
+    /**
+     * Render current reinstall step
+     */
+    function renderReinstallStep() {
+        const domain = reinstallState.domain;
+        const info = reinstallState.siteInfo || {};
+        let content = '';
+        let title = 'Reinstall WordPress';
+
+        switch (reinstallState.step) {
+            case 1:
+                // Step 1: Warning and options
+                title = 'Reinstall WordPress - Step 1 of 3';
+                content = `
+                    <div class="reinstall-modal">
+                        <div class="warning-banner warning-severe">
+                            <span class="warning-icon">⚠️</span>
+                            <strong>Warning: This will delete all WordPress files!</strong>
+                        </div>
+
+                        <p>You are about to reinstall WordPress on:</p>
+                        <p class="domain-display"><strong>${escapeHtml(domain)}</strong></p>
+
+                        <div class="site-info-grid">
+                            <div class="info-item">
+                                <span class="info-label">WordPress Version:</span>
+                                <span class="info-value">${escapeHtml(info.wp_version || 'Unknown')}</span>
+                            </div>
+                            <div class="info-item">
+                                <span class="info-label">Site Size:</span>
+                                <span class="info-value">${escapeHtml(info.site_size || 'Unknown')}</span>
+                            </div>
+                            <div class="info-item">
+                                <span class="info-label">Uploads Size:</span>
+                                <span class="info-value">${escapeHtml(info.uploads_size || 'Unknown')}</span>
+                            </div>
+                            <div class="info-item">
+                                <span class="info-label">Database Size:</span>
+                                <span class="info-value">${escapeHtml(info.db_size || 'Unknown')}</span>
+                            </div>
+                        </div>
+
+                        <div class="reinstall-actions">
+                            <h4>This will:</h4>
+                            <ul class="action-list">
+                                <li class="action-danger">✗ Delete all WordPress core files</li>
+                                <li class="action-danger">✗ Delete all themes</li>
+                                <li class="action-danger">✗ Delete all plugins</li>
+                                <li class="action-success">✓ Create full backup first</li>
+                                <li class="action-success">✓ Preserve database (posts, pages, settings)</li>
+                                <li class="action-success">✓ Download fresh WordPress</li>
+                            </ul>
+                        </div>
+
+                        <div class="form-group">
+                            <label class="checkbox-label">
+                                <input type="checkbox" id="preserve-uploads-checkbox" checked>
+                                <span>Preserve wp-content/uploads (media files)</span>
+                            </label>
+                        </div>
+
+                        <div class="dialog-actions">
+                            <button type="button" class="btn btn-secondary btn-cancel">Cancel</button>
+                            <button type="button" class="btn btn-warning btn-next-step">
+                                Continue →
+                            </button>
+                        </div>
+                    </div>
+                `;
+                break;
+
+            case 2:
+                // Step 2: Type domain to confirm
+                title = 'Reinstall WordPress - Step 2 of 3';
+                content = `
+                    <div class="reinstall-modal">
+                        <div class="warning-banner warning-severe">
+                            <span class="warning-icon">⚠️</span>
+                            <strong>Confirm the domain name</strong>
+                        </div>
+
+                        <p>Type the domain name exactly to confirm:</p>
+                        <p class="domain-display"><strong>${escapeHtml(domain)}</strong></p>
+
+                        <div class="form-group">
+                            <input type="text" id="reinstall-domain-input" placeholder="Type domain here" autocomplete="off">
+                        </div>
+
+                        <div class="dialog-actions">
+                            <button type="button" class="btn btn-secondary btn-back">← Back</button>
+                            <button type="button" class="btn btn-warning btn-next-step" disabled>
+                                Continue →
+                            </button>
+                        </div>
+                    </div>
+                `;
+                break;
+
+            case 3:
+                // Step 3: Type REINSTALL to confirm
+                title = 'Reinstall WordPress - Step 3 of 3';
+                content = `
+                    <div class="reinstall-modal">
+                        <div class="warning-banner warning-severe">
+                            <span class="warning-icon">🔄</span>
+                            <strong>Final Confirmation</strong>
+                        </div>
+
+                        <p>Type <strong>REINSTALL</strong> in capital letters to proceed:</p>
+
+                        <div class="form-group">
+                            <input type="text" id="reinstall-confirm-input" placeholder="Type REINSTALL here" autocomplete="off">
+                        </div>
+
+                        <div class="preserve-status">
+                            ${reinstallState.preserveUploads
+                                ? '<span class="status-ok">✓ Uploads will be preserved</span>'
+                                : '<span class="status-warning">✗ Uploads will be deleted</span>'}
+                        </div>
+
+                        <div class="dialog-actions">
+                            <button type="button" class="btn btn-secondary btn-back">← Back</button>
+                            <button type="button" class="btn btn-danger btn-execute-reinstall" disabled>
+                                🔄 Reinstall WordPress
+                            </button>
+                        </div>
+                    </div>
+                `;
+                break;
+
+            case 4:
+                // Step 4: Progress
+                title = 'Reinstalling WordPress...';
+                content = `
+                    <div class="reinstall-modal reinstall-progress">
+                        <div class="progress-container">
+                            <div class="spinner-large"></div>
+                            <p id="reinstall-status-text">Creating backup...</p>
+                        </div>
+                        <p class="progress-note">This may take a few minutes. Please don't close this window.</p>
+                    </div>
+                `;
+                break;
+
+            case 5:
+                // Step 5: Result (set by executeReinstall)
+                return; // Content is set by executeReinstall
+        }
+
+        showModal(title, content);
+        attachReinstallListeners();
+    }
+
+    /**
+     * Attach event listeners for reinstall modal
+     */
+    function attachReinstallListeners() {
+        const step = reinstallState.step;
+
+        // Cancel button
+        document.querySelector('.btn-cancel')?.addEventListener('click', hideModal);
+
+        // Back button
+        document.querySelector('.btn-back')?.addEventListener('click', () => {
+            reinstallState.step--;
+            renderReinstallStep();
+        });
+
+        if (step === 1) {
+            // Preserve uploads checkbox
+            const checkbox = document.getElementById('preserve-uploads-checkbox');
+            if (checkbox) {
+                checkbox.addEventListener('change', () => {
+                    reinstallState.preserveUploads = checkbox.checked;
+                });
+            }
+
+            // Next button
+            document.querySelector('.btn-next-step')?.addEventListener('click', () => {
+                reinstallState.preserveUploads = document.getElementById('preserve-uploads-checkbox')?.checked ?? true;
+                reinstallState.step = 2;
+                renderReinstallStep();
+            });
+        }
+
+        if (step === 2) {
+            const input = document.getElementById('reinstall-domain-input');
+            const nextBtn = document.querySelector('.btn-next-step');
+
+            if (input && nextBtn) {
+                input.addEventListener('input', () => {
+                    nextBtn.disabled = input.value.trim() !== reinstallState.domain;
+                });
+
+                nextBtn.addEventListener('click', () => {
+                    if (input.value.trim() === reinstallState.domain) {
+                        reinstallState.step = 3;
+                        renderReinstallStep();
+                    }
+                });
+
+                input.focus();
+            }
+        }
+
+        if (step === 3) {
+            const input = document.getElementById('reinstall-confirm-input');
+            const executeBtn = document.querySelector('.btn-execute-reinstall');
+
+            if (input && executeBtn) {
+                input.addEventListener('input', () => {
+                    executeBtn.disabled = input.value !== 'REINSTALL';
+                });
+
+                executeBtn.addEventListener('click', () => {
+                    if (input.value === 'REINSTALL') {
+                        executeReinstall();
+                    }
+                });
+
+                input.focus();
+            }
+        }
+    }
+
+    /**
+     * Execute the reinstall
+     */
+    async function executeReinstall() {
+        reinstallState.step = 4;
+        renderReinstallStep();
+
+        const result = await api('reinstall_wordpress', {
+            domain: reinstallState.domain,
+            preserve_uploads: reinstallState.preserveUploads
+        });
+
+        let content;
+        let title;
+
+        if (result && result.success) {
+            title = 'Reinstall Complete';
+            const data = result.data || {};
+            content = `
+                <div class="reinstall-modal reinstall-success">
+                    <div class="success-banner">
+                        <span class="success-icon">✓</span>
+                        <strong>WordPress reinstalled successfully!</strong>
+                    </div>
+
+                    <div class="result-info">
+                        <p><strong>Domain:</strong> ${escapeHtml(reinstallState.domain)}</p>
+                        <p><strong>Previous Version:</strong> ${escapeHtml(data.old_version || 'Unknown')}</p>
+                        <p><strong>New Version:</strong> ${escapeHtml(data.new_version || 'Latest')}</p>
+                        <p><strong>Backup Location:</strong> ${escapeHtml(data.backup_path || 'Created')}</p>
+                        ${reinstallState.preserveUploads ? '<p><strong>Uploads:</strong> Preserved</p>' : ''}
+                    </div>
+
+                    <div class="next-steps">
+                        <h4>Next Steps:</h4>
+                        <ol>
+                            <li>Visit <a href="https://${escapeHtml(reinstallState.domain)}/wp-admin/" target="_blank">WordPress Admin</a></li>
+                            <li>Reinstall your theme</li>
+                            <li>Reinstall required plugins</li>
+                            <li>Verify your content is intact</li>
+                        </ol>
+                    </div>
+
+                    <div class="dialog-actions">
+                        <button type="button" class="btn btn-primary btn-close-modal">Close</button>
+                    </div>
+                </div>
+            `;
+        } else {
+            title = 'Reinstall Failed';
+            content = `
+                <div class="reinstall-modal reinstall-error">
+                    <div class="error-banner">
+                        <span class="error-icon">✗</span>
+                        <strong>Reinstall failed</strong>
+                    </div>
+
+                    <p class="error-message">${escapeHtml(result?.error || 'An unknown error occurred')}</p>
+
+                    ${result?.output ? `<pre class="error-output">${escapeHtml(result.output)}</pre>` : ''}
+
+                    <p class="recovery-note">
+                        If a backup was created, you can restore from it manually.
+                    </p>
+
+                    <div class="dialog-actions">
+                        <button type="button" class="btn btn-secondary btn-close-modal">Close</button>
+                    </div>
+                </div>
+            `;
+        }
+
+        showModal(title, content);
+
+        document.querySelector('.btn-close-modal')?.addEventListener('click', () => {
+            hideModal();
+            loadSites(); // Refresh sites list
         });
     }
 

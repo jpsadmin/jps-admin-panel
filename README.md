@@ -94,6 +94,8 @@ All API requests are POST to /api.php with CSRF token:
 - deploy_site - Deploy a new site (domain param)
 - save_audit_snapshot - Save current audit state as baseline
 - compare_drift - Compare current state to saved snapshot
+- get_site_info - Get site information (WP version, sizes)
+- reinstall_wordpress - Reinstall WordPress (domain + preserve_uploads params)
 
 ## Sudoers Configuration
 
@@ -110,6 +112,7 @@ The admin panel requires specific sudo permissions. Create `/etc/sudoers.d/jps-a
     www-data ALL=(ALL) NOPASSWD: /usr/local/bin/jps-site-delete
     www-data ALL=(ALL) NOPASSWD: /usr/local/bin/jps-backup-verify
     www-data ALL=(ALL) NOPASSWD: /usr/local/bin/jps-deploy-site
+    www-data ALL=(ALL) NOPASSWD: /usr/local/bin/jps-reinstall-wp
 
     # OpenLiteSpeed control
     www-data ALL=(ALL) NOPASSWD: /usr/local/lsws/bin/lswsctrl
