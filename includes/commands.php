@@ -461,7 +461,7 @@ function cmd_get_site_info(string $domain): array
     }
 
     // Get site size
-    $result = execute_command('/usr/bin/du -sh ' . escapeshellarg($site_path) . ' 2>/dev/null | cut -f1');
+    $result = execute_command('/usr/bin/du -sh ' . escapeshellarg($site_path) . ' 2>/dev/null | cut -f1', false);
     if ($result['success'] && !empty(trim($result['output']))) {
         $data['site_size'] = trim($result['output']);
     }
