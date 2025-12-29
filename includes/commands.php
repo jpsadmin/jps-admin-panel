@@ -561,3 +561,33 @@ function cmd_reinstall_wordpress(string $domain, bool $preserve_uploads = true):
 
     return $result;
 }
+
+/**
+ * Switch File Manager to assets view
+ */
+function cmd_filemanager_assets_view(): array
+{
+    $filemanager_path = '/var/www/admin-panel/public/filemanager.php';
+    $content = file_get_contents($filemanager_path);
+    $content = str_replace('$root_path = \'/usr/local/websites\'', '$root_path = \'/usr/local\'', $content);
+    file_put_contents($filemanager_path, $content);
+    
+    log_action('filemanager_assets_view', 'File Manager switched to assets view');
+    
+    return ['success' => true, 'output' => 'Switched to assets view'];
+}
+
+/**
+ * Switch File Manager back to sites view
+ */
+function cmd_filemanager_sites_view(): array
+{
+    $filemanager_path = '/var/www/admin-panel/public/filemanager.php';
+    $content = file_get_contents($filemanager_path);
+    $content = str_replace('$root_path = \'/usr/local\'', '$root_path = \'/usr/local/websites\'', $content);
+    file_put_contents($filemanager_path, $content);
+    
+    log_action('filemanager_sites_view', 'File Manager switched to sites view');
+    
+    return ['success' => true, 'output' => 'Switched to sites view'];
+}

@@ -179,6 +179,14 @@ switch ($action) {
         json_response($result);
         break;
 
+    case 'filemanager_assets_view':
+        $result = cmd_filemanager_assets_view();
+        json_response($result);
+        break;
+    case 'filemanager_sites_view':
+        $result = cmd_filemanager_sites_view();
+        json_response($result);
+        break;
     default:
         json_response(['success' => false, 'error' => 'Unknown action'], 400);
 }

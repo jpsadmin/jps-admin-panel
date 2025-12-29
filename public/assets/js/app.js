@@ -1067,6 +1067,28 @@
     /**
      * Git pull server tools
      */
+    async function switchFMtoAssets() {
+        showLoading('Switching File Manager to Assets view...');
+        const result = await api('filemanager_assets_view');
+        hideLoading();
+        if (result && result.success) {
+            showToast('File Manager switched to Assets view', 'success');
+        } else {
+            showToast('Failed to switch view', 'error');
+        }
+    }
+
+    async function switchFMtoSites() {
+        showLoading('Switching File Manager to Sites view...');
+        const result = await api('filemanager_sites_view');
+        hideLoading();
+        if (result && result.success) {
+            showToast('File Manager switched to Sites view', 'success');
+        } else {
+            showToast('Failed to switch view', 'error');
+        }
+    }
+
     async function gitPull() {
         showLoading('Pulling updates...');
 
@@ -1257,6 +1279,8 @@
         document.getElementById('btn-deploy-site')?.addEventListener('click', showDeploySiteModal);
         document.getElementById('btn-save-snapshot')?.addEventListener('click', saveAuditSnapshot);
         document.getElementById('btn-compare-drift')?.addEventListener('click', compareDrift);
+        document.getElementById('btn-fm-assets')?.addEventListener('click', switchFMtoAssets);
+        document.getElementById('btn-fm-sites')?.addEventListener('click', switchFMtoSites);
 
         // Modal close handlers
         document.querySelector('.modal-close')?.addEventListener('click', hideModal);

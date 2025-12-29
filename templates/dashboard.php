@@ -115,6 +115,14 @@ defined('JPS_ADMIN') or die('Direct access not permitted');
                     <span class="action-icon">&#x1F4C1;</span>
                     <span class="action-label">File Manager</span>
                 </a>
+                <button type="button" class="action-btn" id="btn-fm-assets" data-action="filemanager_assets_view">
+                    <span class="action-icon">📦</span>
+                    <span class="action-label">FM: Assets View</span>
+                </button>
+                <button type="button" class="action-btn" id="btn-fm-sites" data-action="filemanager_sites_view">
+                    <span class="action-icon">🌐</span>
+                    <span class="action-label">FM: Sites View</span>
+                </button>
             </div>
         </div>
     </section>
