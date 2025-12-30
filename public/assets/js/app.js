@@ -1103,8 +1103,8 @@
      * Render validation results with color coding
      */
     function renderValidationResults(domain, data) {
-        const checks = data.checks || [];
-        const summary = data.summary || {};
+        const checks = data.results || [];
+        const summary = { passed: data.passed || 0, warnings: data.warnings || 0, failed: data.failed || 0 };
 
         let checksHtml = '';
         checks.forEach(check => {
@@ -1168,7 +1168,7 @@
             } else if (result.output) {
                 try {
                     const data = JSON.parse(result.output);
-                    const summary = data.summary || {};
+                    const summary = { passed: data.passed || 0, warnings: data.warnings || 0, failed: data.failed || 0 };
 
                     if (summary.failed > 0) {
                         siteStatus = 'fail';
@@ -1511,12 +1511,9 @@
         document.getElementById('btn-deploy-site')?.addEventListener('click', showDeploySiteModal);
         document.getElementById('btn-save-snapshot')?.addEventListener('click', saveAuditSnapshot);
         document.getElementById('btn-compare-drift')?.addEventListener('click', compareDrift);
-<<<<<<< HEAD
         document.getElementById('btn-validate-all')?.addEventListener('click', validateAllSites);
-=======
         document.getElementById('btn-fm-assets')?.addEventListener('click', switchFMtoAssets);
         document.getElementById('btn-fm-sites')?.addEventListener('click', switchFMtoSites);
->>>>>>> 373c8451820fbd15b3c5dd0aed65e371b1f50e3c
 
         // Modal close handlers
         document.querySelector('.modal-close')?.addEventListener('click', hideModal);

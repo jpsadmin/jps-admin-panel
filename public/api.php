@@ -179,20 +179,16 @@ switch ($action) {
         json_response($result);
         break;
 
-<<<<<<< HEAD
     case 'validate_site':
         $domain = $input['domain'] ?? '';
         $result = cmd_validate_site($domain);
         json_response($result);
         break;
-
     case 'validate_all_sites':
-        set_time_limit(600); // 10 minute timeout for validating all sites
+        set_time_limit(600);
         $result = cmd_validate_all_sites();
         json_response($result);
         break;
-
-=======
     case 'filemanager_assets_view':
         $result = cmd_filemanager_assets_view();
         json_response($result);
@@ -201,7 +197,6 @@ switch ($action) {
         $result = cmd_filemanager_sites_view();
         json_response($result);
         break;
->>>>>>> 373c8451820fbd15b3c5dd0aed65e371b1f50e3c
     default:
         json_response(['success' => false, 'error' => 'Unknown action'], 400);
 }
