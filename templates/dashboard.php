@@ -90,6 +90,7 @@ defined('JPS_ADMIN') or die('Direct access not permitted');
             </h2>
         </div>
         <div class="panel-body">
+<<<<<<< HEAD
             <div class="actions-container">
                 <!-- Routine Actions -->
                 <div class="actions-group routine-actions">
@@ -148,6 +149,41 @@ defined('JPS_ADMIN') or die('Direct access not permitted');
                         </button>
                     </div>
                 </div>
+=======
+            <div class="actions-grid">
+                <button type="button" class="action-btn" id="btn-restart-ols" data-action="restart_ols">
+                    <span class="action-icon">&#x1F504;</span>
+                    <span class="action-label">Restart OpenLiteSpeed</span>
+                </button>
+                <button type="button" class="action-btn" id="btn-run-audit" data-action="run_audit">
+                    <span class="action-icon">&#x1F4CA;</span>
+                    <span class="action-label">Run Full Audit</span>
+                </button>
+                <button type="button" class="action-btn" id="btn-git-pull" data-action="git_pull">
+                    <span class="action-icon">&#x1F504;</span>
+                    <span class="action-label">Pull Git Updates</span>
+                </button>
+                <button type="button" class="action-btn" id="btn-save-snapshot" data-action="save_snapshot">
+                    <span class="action-icon">&#x1F4BE;</span>
+                    <span class="action-label">Save Audit Snapshot</span>
+                </button>
+                <button type="button" class="action-btn" id="btn-compare-drift" data-action="compare_drift">
+                    <span class="action-icon">&#x1F50D;</span>
+                    <span class="action-label">Compare Drift</span>
+                </button>
+                <a href="/filemanager.php" class="action-btn" target="_blank" style="text-decoration: none;">
+                    <span class="action-icon">&#x1F4C1;</span>
+                    <span class="action-label">File Manager</span>
+                </a>
+                <button type="button" class="action-btn" id="btn-fm-assets" data-action="filemanager_assets_view">
+                    <span class="action-icon">📦</span>
+                    <span class="action-label">FM: Assets View</span>
+                </button>
+                <button type="button" class="action-btn" id="btn-fm-sites" data-action="filemanager_sites_view">
+                    <span class="action-icon">🌐</span>
+                    <span class="action-label">FM: Sites View</span>
+                </button>
+>>>>>>> 373c8451820fbd15b3c5dd0aed65e371b1f50e3c
             </div>
         </div>
     </section>
