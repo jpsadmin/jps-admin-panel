@@ -705,3 +705,188 @@ function cmd_run_daily_monitor(): array
 
     return execute_command($cmd, true);
 }
+
+/**
+ * Check DNS for a domain
+ */
+function cmd_check_dns(string $domain): array
+{
+    // Basic domain validation
+    if (empty($domain)) {
+        return ['success' => false, 'error' => 'Domain is required'];
+    }
+
+    $domain = preg_replace('/[^a-zA-Z0-9.-]/', '', $domain);
+    if (empty($domain) || strlen($domain) < 4 || !preg_match('/^[a-zA-Z0-9]([a-zA-Z0-9-]*\.)+[a-zA-Z]{2,}$/', $domain)) {
+        return ['success' => false, 'error' => 'Invalid domain format'];
+    }
+
+    $config = get_config();
+    $cmd = escapeshellcmd($config['commands']['jps-dns-check']) . ' --json ' . escapeshellarg($domain);
+
+    $result = execute_command($cmd);
+
+    // Parse JSON output from jps-dns-check
+    if (!empty($result['output'])) {
+        $dns_data = json_decode($result['output'], true);
+        if ($dns_data) {
+            $result['dns'] = $dns_data;
+            $result['success'] = ($dns_data['status'] === 'ok');
+        }
+    }
+
+    return $result;
+}
+
+/**
+ * Start site deployment (background job)
+ */
+function cmd_deploy_site_start(string $domain, string $email = '', string $username = ''): array
+{
+    // Basic domain validation
+    if (empty($domain)) {
+        return ['success' => false, 'error' => 'Domain is required'];
+    }
+
+    $domain = preg_replace('/[^a-zA-Z0-9.-]/', '', $domain);
+    if (empty($domain) || strlen($domain) < 4 || !preg_match('/^[a-zA-Z0-9]([a-zA-Z0-9-]*\.)+[a-zA-Z]{2,}$/', $domain)) {
+        return ['success' => false, 'error' => 'Invalid domain format'];
+    }
+
+    // Validate email if provided
+    if (!empty($email) && !filter_var($email, FILTER_VALIDATE_EMAIL)) {
+        return ['success' => false, 'error' => 'Invalid email format'];
+    }
+
+    // Generate job ID
+    $job_id = 'deploy_' . bin2hex(random_bytes(8));
+    $log_file = "/tmp/{$job_id}.log";
+    $status_file = "/tmp/{$job_id}.status";
+
+    // Build command
+    $config = get_config();
+    $cmd = escapeshellcmd($config['commands']['jps-deploy-site']);
+    $cmd .= ' --progress';
+    $cmd .= ' -d ' . escapeshellarg($domain);
+
+    if (!empty($email)) {
+        $cmd .= ' -e ' . escapeshellarg($email);
+    }
+
+    if (!empty($username)) {
+        $username = preg_replace('/[^a-zA-Z0-9_]/', '', $username);
+        if (!empty($username)) {
+            $cmd .= ' -u ' . escapeshellarg($username);
+        }
+    }
+
+    // Run in background
+    $background_cmd = "nohup sudo {$cmd} > " . escapeshellarg($log_file) . " 2>&1 & echo $!";
+
+    exec($background_cmd, $output, $return_code);
+
+    $pid = !empty($output[0]) ? trim($output[0]) : '';
+
+    // Write initial status
+    $status = [
+        'job_id' => $job_id,
+        'domain' => $domain,
+        'pid' => $pid,
+        'started' => date('Y-m-d H:i:s'),
+        'status' => 'running',
+    ];
+    file_put_contents($status_file, json_encode($status));
+
+    log_action('deploy_site_start', "Started deployment for {$domain} (job: {$job_id})");
+
+    return [
+        'success' => true,
+        'job_id' => $job_id,
+        'pid' => $pid,
+        'message' => 'Deployment started',
+    ];
+}
+
+/**
+ * Get deployment job status
+ */
+function cmd_deploy_site_status(string $job_id): array
+{
+    // Validate job ID format
+    if (empty($job_id) || !preg_match('/^deploy_[a-f0-9]+$/', $job_id)) {
+        return ['success' => false, 'error' => 'Invalid job ID'];
+    }
+
+    $log_file = "/tmp/{$job_id}.log";
+    $status_file = "/tmp/{$job_id}.status";
+
+    if (!file_exists($log_file)) {
+        return ['success' => false, 'error' => 'Job not found'];
+    }
+
+    // Read log file
+    $log_content = file_get_contents($log_file);
+    $lines = explode("\n", trim($log_content));
+
+    // Parse progress updates
+    $progress = [];
+    $credentials = null;
+    $result_status = null;
+
+    foreach ($lines as $line) {
+        $line = trim($line);
+        if (empty($line)) continue;
+
+        $json = json_decode($line, true);
+        if ($json) {
+            if (isset($json['step'])) {
+                if ($json['step'] === 'credentials') {
+                    $credentials = $json;
+                } elseif ($json['step'] === 'result') {
+                    $result_status = $json;
+                } else {
+                    $progress[] = $json;
+                }
+            }
+        }
+    }
+
+    // Check if process is still running
+    $status_data = [];
+    if (file_exists($status_file)) {
+        $status_data = json_decode(file_get_contents($status_file), true) ?: [];
+    }
+
+    $pid = $status_data['pid'] ?? '';
+    $is_running = false;
+    if (!empty($pid)) {
+        exec("ps -p " . escapeshellarg($pid) . " > /dev/null 2>&1", $_, $ps_code);
+        $is_running = ($ps_code === 0);
+    }
+
+    // Determine overall status
+    $complete = false;
+    $failed = false;
+
+    if ($result_status) {
+        $complete = ($result_status['status'] === 'success');
+        $failed = ($result_status['status'] === 'failed');
+    } elseif (!$is_running && !empty($progress)) {
+        // Process ended without result - check last progress
+        $last = end($progress);
+        if ($last && $last['status'] === 'error') {
+            $failed = true;
+        }
+    }
+
+    return [
+        'success' => true,
+        'job_id' => $job_id,
+        'running' => $is_running,
+        'complete' => $complete,
+        'failed' => $failed,
+        'progress' => $progress,
+        'credentials' => $credentials,
+        'raw' => $log_content,
+    ];
+}

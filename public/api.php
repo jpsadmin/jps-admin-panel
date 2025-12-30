@@ -214,6 +214,26 @@ switch ($action) {
         json_response($result);
         break;
 
+    case 'check_dns':
+        $domain = $input['domain'] ?? '';
+        $result = cmd_check_dns($domain);
+        json_response($result);
+        break;
+
+    case 'deploy_site_start':
+        $domain = $input['domain'] ?? '';
+        $email = $input['email'] ?? '';
+        $username = $input['username'] ?? '';
+        $result = cmd_deploy_site_start($domain, $email, $username);
+        json_response($result);
+        break;
+
+    case 'deploy_site_status':
+        $job_id = $input['job_id'] ?? '';
+        $result = cmd_deploy_site_status($job_id);
+        json_response($result);
+        break;
+
     default:
         json_response(['success' => false, 'error' => 'Unknown action'], 400);
 }

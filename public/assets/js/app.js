@@ -1522,69 +1522,700 @@
         showModal('Git Pull Result', `<pre>${ansiToHtml(result.output || 'Already up to date')}</pre>`);
     }
 
+    // ============================================
+    // Deployment Wizard
+    // ============================================
+
+    // Wizard state
+    let deployWizard = {
+        currentStep: 1,
+        domain: '',
+        email: 'admin@jpshosting.net',
+        username: '',
+        dnsVerified: false,
+        jobId: null,
+        pollInterval: null,
+        credentials: null
+    };
+
     /**
-     * Show deploy site modal
+     * Show deploy site wizard
      */
     function showDeploySiteModal() {
-        const content = `
-            <div class="deploy-site-form">
-                <div class="form-group">
-                    <label for="deploy-domain-input">Domain Name:</label>
-                    <input type="text" id="deploy-domain-input" placeholder="example.com" autocomplete="off">
-                    <small>Enter the domain name for the new site (e.g., example.com)</small>
-                </div>
+        // Reset wizard state
+        deployWizard = {
+            currentStep: 1,
+            domain: '',
+            email: 'admin@jpshosting.net',
+            username: '',
+            dnsVerified: false,
+            jobId: null,
+            pollInterval: null,
+            credentials: null
+        };
 
-                <div class="dialog-actions">
-                    <button type="button" class="btn btn-secondary btn-cancel">Cancel</button>
-                    <button type="button" class="btn btn-primary btn-deploy-confirm">
-                        Deploy Site
-                    </button>
+        renderDeployWizardStep(1);
+    }
+
+    /**
+     * Render a specific wizard step
+     */
+    function renderDeployWizardStep(step) {
+        deployWizard.currentStep = step;
+
+        const stepIndicator = `
+            <div class="wizard-steps">
+                <div class="wizard-step ${step >= 1 ? 'active' : ''} ${step > 1 ? 'complete' : ''}">
+                    <div class="wizard-step-number">${step > 1 ? '&#x2713;' : '1'}</div>
+                    <div class="wizard-step-label">DNS Check</div>
+                </div>
+                <div class="wizard-step-connector ${step > 1 ? 'active' : ''}"></div>
+                <div class="wizard-step ${step >= 2 ? 'active' : ''} ${step > 2 ? 'complete' : ''}">
+                    <div class="wizard-step-number">${step > 2 ? '&#x2713;' : '2'}</div>
+                    <div class="wizard-step-label">Configure</div>
+                </div>
+                <div class="wizard-step-connector ${step > 2 ? 'active' : ''}"></div>
+                <div class="wizard-step ${step >= 3 ? 'active' : ''} ${step > 3 ? 'complete' : ''}">
+                    <div class="wizard-step-number">${step > 3 ? '&#x2713;' : '3'}</div>
+                    <div class="wizard-step-label">Deploy</div>
+                </div>
+                <div class="wizard-step-connector ${step > 3 ? 'active' : ''}"></div>
+                <div class="wizard-step ${step >= 4 ? 'active' : ''}">
+                    <div class="wizard-step-number">4</div>
+                    <div class="wizard-step-label">Complete</div>
+                </div>
+            </div>
+        `;
+
+        let stepContent = '';
+        switch (step) {
+            case 1:
+                stepContent = renderDnsStep();
+                break;
+            case 2:
+                stepContent = renderConfigStep();
+                break;
+            case 3:
+                stepContent = renderProgressStep();
+                break;
+            case 4:
+                stepContent = renderCompleteStep();
+                break;
+        }
+
+        const content = `
+            <div class="deploy-wizard">
+                ${stepIndicator}
+                <div class="wizard-content">
+                    ${stepContent}
                 </div>
             </div>
         `;
 
         showModal('Deploy New Site', content);
+        attachWizardListeners(step);
+    }
 
-        // Attach event listeners
-        const input = document.getElementById('deploy-domain-input');
-        const deployBtn = document.querySelector('.btn-deploy-confirm');
-        const cancelBtn = document.querySelector('.btn-cancel');
+    /**
+     * Step 1: DNS verification
+     */
+    function renderDnsStep() {
+        return `
+            <div class="wizard-step-content" id="dns-step">
+                <h3>Step 1: Domain & DNS Verification</h3>
+                <p class="step-description">Enter the domain name for your new site. We'll verify that DNS is correctly configured before proceeding.</p>
 
-        cancelBtn.addEventListener('click', hideModal);
+                <div class="form-group">
+                    <label for="wizard-domain-input">Domain Name</label>
+                    <input type="text" id="wizard-domain-input" class="form-input" placeholder="example.com" value="${escapeHtml(deployWizard.domain)}" autocomplete="off">
+                    <small>The full domain name for the new WordPress site</small>
+                </div>
 
-        deployBtn.addEventListener('click', async () => {
-            const domain = input.value.trim();
+                <div id="dns-status" class="dns-status hidden">
+                    <div class="dns-checking">
+                        <div class="inline-spinner"></div>
+                        <span>Checking DNS...</span>
+                    </div>
+                </div>
+
+                <div id="dns-instructions" class="dns-instructions hidden">
+                    <div class="warning-banner">
+                        <span class="warning-icon">&#x26A0;&#xFE0F;</span>
+                        <div>
+                            <strong>DNS Not Configured</strong>
+                            <p>Please add the following DNS record before continuing:</p>
+                        </div>
+                    </div>
+                    <div class="dns-record-box">
+                        <div class="dns-record-row">
+                            <span class="dns-label">Type:</span>
+                            <span class="dns-value">A</span>
+                        </div>
+                        <div class="dns-record-row">
+                            <span class="dns-label">Name:</span>
+                            <span class="dns-value" id="dns-record-name">@</span>
+                        </div>
+                        <div class="dns-record-row">
+                            <span class="dns-label">Value:</span>
+                            <span class="dns-value">69.62.67.12</span>
+                        </div>
+                    </div>
+                    <p class="dns-note">DNS changes can take up to 24 hours to propagate, but usually complete within minutes.</p>
+                </div>
+
+                <div id="dns-success" class="dns-success hidden">
+                    <div class="success-banner">
+                        <span class="success-icon">&#x2705;</span>
+                        <div>
+                            <strong>DNS Configured Correctly</strong>
+                            <p id="dns-success-message">Domain resolves to 69.62.67.12</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="wizard-actions">
+                    <button type="button" class="btn btn-secondary btn-wizard-cancel">Cancel</button>
+                    <button type="button" class="btn btn-primary btn-check-dns" id="btn-check-dns">
+                        Check DNS
+                    </button>
+                    <button type="button" class="btn btn-primary btn-next-step hidden" id="btn-dns-next" disabled>
+                        Next: Configure Site
+                    </button>
+                </div>
+            </div>
+        `;
+    }
+
+    /**
+     * Step 2: Configuration
+     */
+    function renderConfigStep() {
+        const suggestedUsername = 'jpsadmin_' + Math.random().toString(36).substring(2, 6);
+
+        return `
+            <div class="wizard-step-content" id="config-step">
+                <h3>Step 2: Site Configuration</h3>
+                <p class="step-description">Configure the WordPress admin account and site options.</p>
+
+                <div class="config-summary">
+                    <div class="config-item">
+                        <span class="config-label">Domain:</span>
+                        <span class="config-value">${escapeHtml(deployWizard.domain)}</span>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="wizard-email-input">Admin Email</label>
+                    <input type="email" id="wizard-email-input" class="form-input" placeholder="admin@example.com" value="${escapeHtml(deployWizard.email)}">
+                    <small>WordPress admin email address for notifications and password reset</small>
+                </div>
+
+                <div class="form-group">
+                    <label for="wizard-username-input">Admin Username</label>
+                    <input type="text" id="wizard-username-input" class="form-input" placeholder="${suggestedUsername}" value="${escapeHtml(deployWizard.username || suggestedUsername)}">
+                    <small>WordPress admin username (avoid "admin" for security)</small>
+                </div>
+
+                <div class="wizard-actions">
+                    <button type="button" class="btn btn-secondary btn-wizard-back">Back</button>
+                    <button type="button" class="btn btn-primary btn-start-deploy" id="btn-start-deploy">
+                        Start Deployment
+                    </button>
+                </div>
+            </div>
+        `;
+    }
+
+    /**
+     * Step 3: Deployment progress
+     */
+    function renderProgressStep() {
+        const steps = [
+            { id: 'validate', name: 'Validating prerequisites' },
+            { id: 'directories', name: 'Creating directory structure' },
+            { id: 'database', name: 'Creating database' },
+            { id: 'wordpress', name: 'Installing WordPress' },
+            { id: 'vhost', name: 'Configuring virtual host' },
+            { id: 'ssl', name: 'Generating SSL certificate' },
+            { id: 'permissions', name: 'Setting permissions' },
+            { id: 'finalize', name: 'Validating deployment' }
+        ];
+
+        const stepItems = steps.map(s => `
+            <div class="progress-step pending" id="progress-${s.id}">
+                <span class="progress-icon">&#x23F3;</span>
+                <span class="progress-name">${s.name}</span>
+                <span class="progress-status"></span>
+            </div>
+        `).join('');
+
+        return `
+            <div class="wizard-step-content" id="progress-step">
+                <h3>Step 3: Deploying Site</h3>
+                <p class="step-description">Please wait while your site is being deployed. This may take a few minutes.</p>
+
+                <div class="deploy-domain-display">
+                    <span class="domain-icon">&#x1F310;</span>
+                    <span class="domain-name">${escapeHtml(deployWizard.domain)}</span>
+                </div>
+
+                <div class="progress-steps" id="deploy-progress-steps">
+                    ${stepItems}
+                </div>
+
+                <div class="progress-details-toggle">
+                    <button type="button" class="btn btn-sm btn-link" id="btn-toggle-details">
+                        Show Details
+                    </button>
+                </div>
+
+                <div class="progress-details hidden" id="deploy-details">
+                    <pre id="deploy-log"></pre>
+                </div>
+
+                <div class="wizard-actions">
+                    <button type="button" class="btn btn-secondary btn-wizard-cancel" disabled id="btn-cancel-deploy">
+                        Cancel
+                    </button>
+                </div>
+            </div>
+        `;
+    }
+
+    /**
+     * Step 4: Completion
+     */
+    function renderCompleteStep() {
+        const creds = deployWizard.credentials || {};
+        const domain = deployWizard.domain;
+
+        return `
+            <div class="wizard-step-content" id="complete-step">
+                <div class="completion-header">
+                    <span class="completion-icon">&#x1F389;</span>
+                    <h3>Deployment Complete!</h3>
+                    <p>Your WordPress site has been successfully deployed.</p>
+                </div>
+
+                <div class="credentials-box">
+                    <h4>WordPress Credentials</h4>
+                    <div class="credential-row">
+                        <span class="credential-label">Site URL:</span>
+                        <span class="credential-value">
+                            <a href="https://${escapeHtml(domain)}" target="_blank">https://${escapeHtml(domain)}</a>
+                        </span>
+                    </div>
+                    <div class="credential-row">
+                        <span class="credential-label">Admin URL:</span>
+                        <span class="credential-value">
+                            <a href="${escapeHtml(creds.wp_admin_url || 'https://' + domain + '/wp-admin/')}" target="_blank">${escapeHtml(creds.wp_admin_url || 'https://' + domain + '/wp-admin/')}</a>
+                        </span>
+                    </div>
+                    <div class="credential-row">
+                        <span class="credential-label">Username:</span>
+                        <span class="credential-value">
+                            <code>${escapeHtml(creds.wp_username || deployWizard.username)}</code>
+                            <button type="button" class="copy-btn" data-copy="${escapeHtml(creds.wp_username || deployWizard.username)}" title="Copy">&#x1F4CB;</button>
+                        </span>
+                    </div>
+                    <div class="credential-row">
+                        <span class="credential-label">Password:</span>
+                        <span class="credential-value">
+                            <code>${escapeHtml(creds.wp_password || '')}</code>
+                            <button type="button" class="copy-btn" data-copy="${escapeHtml(creds.wp_password || '')}" title="Copy">&#x1F4CB;</button>
+                        </span>
+                    </div>
+                </div>
+
+                <div class="credentials-box">
+                    <h4>Database Credentials</h4>
+                    <div class="credential-row">
+                        <span class="credential-label">Database:</span>
+                        <span class="credential-value">
+                            <code>${escapeHtml(creds.db_name || '')}</code>
+                        </span>
+                    </div>
+                    <div class="credential-row">
+                        <span class="credential-label">DB User:</span>
+                        <span class="credential-value">
+                            <code>${escapeHtml(creds.db_user || '')}</code>
+                        </span>
+                    </div>
+                    <div class="credential-row">
+                        <span class="credential-label">DB Password:</span>
+                        <span class="credential-value">
+                            <code>${escapeHtml(creds.db_password || '')}</code>
+                            <button type="button" class="copy-btn" data-copy="${escapeHtml(creds.db_password || '')}" title="Copy">&#x1F4CB;</button>
+                        </span>
+                    </div>
+                </div>
+
+                <div class="warning-banner credential-warning">
+                    <span class="warning-icon">&#x26A0;&#xFE0F;</span>
+                    <span>Save these credentials now! They won't be shown again.</span>
+                </div>
+
+                <div class="wizard-actions completion-actions">
+                    <button type="button" class="btn btn-secondary" id="btn-visit-site">
+                        &#x1F310; Visit Site
+                    </button>
+                    <button type="button" class="btn btn-secondary" id="btn-wp-admin">
+                        &#x1F511; WP Admin
+                    </button>
+                    <button type="button" class="btn btn-secondary" id="btn-deploy-another">
+                        &#x2795; Deploy Another
+                    </button>
+                    <button type="button" class="btn btn-primary" id="btn-wizard-done">
+                        Done
+                    </button>
+                </div>
+            </div>
+        `;
+    }
+
+    /**
+     * Attach event listeners for current step
+     */
+    function attachWizardListeners(step) {
+        // Cancel button (always available)
+        document.querySelectorAll('.btn-wizard-cancel').forEach(btn => {
+            btn.addEventListener('click', () => {
+                if (deployWizard.pollInterval) {
+                    clearInterval(deployWizard.pollInterval);
+                }
+                hideModal();
+            });
+        });
+
+        // Back button
+        document.querySelectorAll('.btn-wizard-back').forEach(btn => {
+            btn.addEventListener('click', () => {
+                renderDeployWizardStep(deployWizard.currentStep - 1);
+            });
+        });
+
+        switch (step) {
+            case 1:
+                attachDnsStepListeners();
+                break;
+            case 2:
+                attachConfigStepListeners();
+                break;
+            case 3:
+                attachProgressStepListeners();
+                break;
+            case 4:
+                attachCompleteStepListeners();
+                break;
+        }
+    }
+
+    /**
+     * DNS step listeners
+     */
+    function attachDnsStepListeners() {
+        const domainInput = document.getElementById('wizard-domain-input');
+        const checkBtn = document.getElementById('btn-check-dns');
+        const nextBtn = document.getElementById('btn-dns-next');
+
+        if (!domainInput || !checkBtn) return;
+
+        // Focus the input
+        domainInput.focus();
+
+        // Check DNS button
+        checkBtn.addEventListener('click', async () => {
+            const domain = domainInput.value.trim().toLowerCase();
             if (!domain) {
                 showToast('Please enter a domain name', 'warning');
                 return;
             }
 
-            hideModal();
-            showLoading('Deploying site...');
-
-            const result = await api('deploy_site', { domain: domain });
-
-            hideLoading();
-
-            if (!result || !result.success) {
-                showToast('Failed to deploy site: ' + (result?.error || 'Unknown error'), 'error');
+            // Basic validation
+            if (!domain.match(/^[a-z0-9]([a-z0-9-]*\.)+[a-z]{2,}$/)) {
+                showToast('Please enter a valid domain name', 'warning');
                 return;
             }
 
-            showToast('Site deployed successfully', 'success');
-            showModal('Deploy Result', `<pre>${ansiToHtml(result.output || 'Site deployed')}</pre>`);
-            loadSites();
+            deployWizard.domain = domain;
+            await checkDnsStatus();
         });
 
-        // Allow Enter key to submit
-        input.addEventListener('keypress', (e) => {
+        // Enter key to check DNS
+        domainInput.addEventListener('keypress', (e) => {
             if (e.key === 'Enter') {
-                deployBtn.click();
+                checkBtn.click();
             }
         });
 
-        // Focus the input
-        input.focus();
+        // Next button
+        if (nextBtn) {
+            nextBtn.addEventListener('click', () => {
+                renderDeployWizardStep(2);
+            });
+        }
+    }
+
+    /**
+     * Check DNS status for domain
+     */
+    async function checkDnsStatus() {
+        const statusEl = document.getElementById('dns-status');
+        const instructionsEl = document.getElementById('dns-instructions');
+        const successEl = document.getElementById('dns-success');
+        const checkBtn = document.getElementById('btn-check-dns');
+        const nextBtn = document.getElementById('btn-dns-next');
+        const recordNameEl = document.getElementById('dns-record-name');
+
+        // Show checking status
+        statusEl.classList.remove('hidden');
+        statusEl.querySelector('.dns-checking').style.display = 'flex';
+        instructionsEl.classList.add('hidden');
+        successEl.classList.add('hidden');
+        checkBtn.disabled = true;
+
+        try {
+            const result = await api('check_dns', { domain: deployWizard.domain });
+
+            statusEl.querySelector('.dns-checking').style.display = 'none';
+
+            if (result && result.success && result.dns && result.dns.status === 'ok') {
+                // DNS is correctly configured
+                deployWizard.dnsVerified = true;
+                successEl.classList.remove('hidden');
+                document.getElementById('dns-success-message').textContent =
+                    `${deployWizard.domain} resolves to ${result.dns.resolved_ip}`;
+
+                checkBtn.classList.add('hidden');
+                nextBtn.classList.remove('hidden');
+                nextBtn.disabled = false;
+            } else {
+                // DNS not configured or mismatch
+                instructionsEl.classList.remove('hidden');
+                if (recordNameEl) {
+                    // Extract subdomain for DNS record name
+                    const parts = deployWizard.domain.split('.');
+                    if (parts.length > 2) {
+                        recordNameEl.textContent = parts.slice(0, -2).join('.');
+                    } else {
+                        recordNameEl.textContent = '@';
+                    }
+                }
+
+                checkBtn.textContent = 'Re-check DNS';
+            }
+        } catch (err) {
+            showToast('Failed to check DNS: ' + err.message, 'error');
+        }
+
+        checkBtn.disabled = false;
+    }
+
+    /**
+     * Config step listeners
+     */
+    function attachConfigStepListeners() {
+        const emailInput = document.getElementById('wizard-email-input');
+        const usernameInput = document.getElementById('wizard-username-input');
+        const deployBtn = document.getElementById('btn-start-deploy');
+
+        if (!deployBtn) return;
+
+        deployBtn.addEventListener('click', async () => {
+            // Validate inputs
+            const email = emailInput.value.trim();
+            const username = usernameInput.value.trim();
+
+            if (!email || !email.match(/^[^\s@]+@[^\s@]+\.[^\s@]+$/)) {
+                showToast('Please enter a valid email address', 'warning');
+                emailInput.focus();
+                return;
+            }
+
+            if (!username || username.length < 3) {
+                showToast('Please enter a username (at least 3 characters)', 'warning');
+                usernameInput.focus();
+                return;
+            }
+
+            // Store values
+            deployWizard.email = email;
+            deployWizard.username = username;
+
+            // Start deployment
+            await startDeployment();
+        });
+    }
+
+    /**
+     * Start the deployment process
+     */
+    async function startDeployment() {
+        // Move to progress step
+        renderDeployWizardStep(3);
+
+        try {
+            // Start deployment job
+            const result = await api('deploy_site_start', {
+                domain: deployWizard.domain,
+                email: deployWizard.email,
+                username: deployWizard.username
+            });
+
+            if (!result || !result.success) {
+                showToast('Failed to start deployment: ' + (result?.error || 'Unknown error'), 'error');
+                return;
+            }
+
+            deployWizard.jobId = result.job_id;
+
+            // Start polling for progress
+            deployWizard.pollInterval = setInterval(pollDeploymentStatus, 2000);
+            pollDeploymentStatus(); // Initial poll
+        } catch (err) {
+            showToast('Failed to start deployment: ' + err.message, 'error');
+        }
+    }
+
+    /**
+     * Poll deployment status
+     */
+    async function pollDeploymentStatus() {
+        if (!deployWizard.jobId) return;
+
+        try {
+            const result = await api('deploy_site_status', { job_id: deployWizard.jobId });
+
+            if (!result || !result.success) {
+                return;
+            }
+
+            // Update progress UI
+            updateDeploymentProgress(result);
+
+            // Update details log
+            const logEl = document.getElementById('deploy-log');
+            if (logEl && result.raw) {
+                logEl.textContent = result.raw;
+                logEl.scrollTop = logEl.scrollHeight;
+            }
+
+            // Check if complete or failed
+            if (result.complete) {
+                clearInterval(deployWizard.pollInterval);
+                deployWizard.credentials = result.credentials;
+                setTimeout(() => {
+                    renderDeployWizardStep(4);
+                    loadSites(); // Refresh site list
+                }, 1000);
+            } else if (result.failed) {
+                clearInterval(deployWizard.pollInterval);
+                showToast('Deployment failed. Check the details for more information.', 'error');
+                const cancelBtn = document.getElementById('btn-cancel-deploy');
+                if (cancelBtn) {
+                    cancelBtn.disabled = false;
+                    cancelBtn.textContent = 'Close';
+                }
+            }
+        } catch (err) {
+            console.error('Error polling status:', err);
+        }
+    }
+
+    /**
+     * Update progress step UI based on status
+     */
+    function updateDeploymentProgress(status) {
+        if (!status.progress) return;
+
+        const stepIds = ['validate', 'directories', 'database', 'wordpress', 'vhost', 'ssl', 'permissions', 'finalize'];
+
+        status.progress.forEach(p => {
+            const stepEl = document.getElementById(`progress-${p.name}`);
+            if (!stepEl) return;
+
+            stepEl.className = 'progress-step';
+
+            if (p.status === 'start') {
+                stepEl.classList.add('running');
+                stepEl.querySelector('.progress-icon').innerHTML = '&#x1F504;';
+            } else if (p.status === 'complete') {
+                stepEl.classList.add('complete');
+                stepEl.querySelector('.progress-icon').innerHTML = '&#x2705;';
+            } else if (p.status === 'error') {
+                stepEl.classList.add('failed');
+                stepEl.querySelector('.progress-icon').innerHTML = '&#x274C;';
+            }
+
+            const statusEl = stepEl.querySelector('.progress-status');
+            if (statusEl && p.message) {
+                statusEl.textContent = p.status === 'complete' ? '' : p.message;
+            }
+        });
+    }
+
+    /**
+     * Progress step listeners
+     */
+    function attachProgressStepListeners() {
+        const toggleBtn = document.getElementById('btn-toggle-details');
+        const detailsEl = document.getElementById('deploy-details');
+
+        if (toggleBtn && detailsEl) {
+            toggleBtn.addEventListener('click', () => {
+                detailsEl.classList.toggle('hidden');
+                toggleBtn.textContent = detailsEl.classList.contains('hidden') ? 'Show Details' : 'Hide Details';
+            });
+        }
+    }
+
+    /**
+     * Complete step listeners
+     */
+    function attachCompleteStepListeners() {
+        // Copy buttons
+        document.querySelectorAll('.copy-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const text = btn.getAttribute('data-copy');
+                if (text) {
+                    navigator.clipboard.writeText(text).then(() => {
+                        showToast('Copied to clipboard', 'success');
+                    });
+                }
+            });
+        });
+
+        // Visit site
+        const visitBtn = document.getElementById('btn-visit-site');
+        if (visitBtn) {
+            visitBtn.addEventListener('click', () => {
+                window.open('https://' + deployWizard.domain, '_blank');
+            });
+        }
+
+        // WP Admin
+        const adminBtn = document.getElementById('btn-wp-admin');
+        if (adminBtn) {
+            adminBtn.addEventListener('click', () => {
+                window.open('https://' + deployWizard.domain + '/wp-admin/', '_blank');
+            });
+        }
+
+        // Deploy another
+        const anotherBtn = document.getElementById('btn-deploy-another');
+        if (anotherBtn) {
+            anotherBtn.addEventListener('click', () => {
+                showDeploySiteModal();
+            });
+        }
+
+        // Done
+        const doneBtn = document.getElementById('btn-wizard-done');
+        if (doneBtn) {
+            doneBtn.addEventListener('click', () => {
+                hideModal();
+            });
+        }
     }
 
     /**
