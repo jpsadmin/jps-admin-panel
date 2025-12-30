@@ -1866,3 +1866,209 @@ a:hover {
     background: rgba(0, 255, 136, 0.2);
     border-color: var(--success);
 }
+
+/* ============================================
+   Daily Monitor Panel
+   ============================================ */
+.monitor-status {
+    min-height: 120px;
+}
+
+.monitor-loading {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: var(--spacing-lg);
+    color: var(--text-muted);
+}
+
+.monitor-overview {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-md);
+}
+
+.monitor-summary {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-md);
+    padding: var(--spacing-md);
+    background: rgba(0, 0, 0, 0.2);
+    border-radius: var(--radius-md);
+    border-left: 3px solid var(--accent-primary);
+}
+
+.monitor-summary.status-ok {
+    border-left-color: var(--success);
+}
+
+.monitor-summary.status-warning {
+    border-left-color: var(--warning);
+}
+
+.monitor-summary.status-critical {
+    border-left-color: var(--danger);
+}
+
+.monitor-icon {
+    font-size: 1.5rem;
+}
+
+.monitor-summary.status-ok .monitor-icon {
+    color: var(--success);
+}
+
+.monitor-summary.status-warning .monitor-icon {
+    color: var(--warning);
+}
+
+.monitor-summary.status-critical .monitor-icon {
+    color: var(--danger);
+}
+
+.monitor-info {
+    flex: 1;
+}
+
+.monitor-title {
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-bottom: var(--spacing-xs);
+}
+
+.monitor-date {
+    font-size: 0.8125rem;
+    color: var(--text-muted);
+}
+
+.monitor-counts {
+    display: flex;
+    gap: var(--spacing-lg);
+}
+
+.monitor-count {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: var(--spacing-sm) var(--spacing-md);
+}
+
+.monitor-count-value {
+    font-size: 1.25rem;
+    font-weight: 700;
+}
+
+.monitor-count.count-ok .monitor-count-value {
+    color: var(--success);
+}
+
+.monitor-count.count-warning .monitor-count-value {
+    color: var(--warning);
+}
+
+.monitor-count.count-critical .monitor-count-value {
+    color: var(--danger);
+}
+
+.monitor-count-label {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    text-transform: uppercase;
+}
+
+.monitor-actions-row {
+    display: flex;
+    justify-content: flex-end;
+}
+
+.monitor-no-report {
+    text-align: center;
+    padding: var(--spacing-lg);
+    color: var(--text-muted);
+}
+
+.monitor-no-report p {
+    margin-bottom: var(--spacing-md);
+}
+
+/* Monitor Details Modal */
+.monitor-details {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-lg);
+}
+
+.monitor-section {
+    background: rgba(0, 0, 0, 0.2);
+    border-radius: var(--radius-md);
+    padding: var(--spacing-md);
+}
+
+.monitor-section-title {
+    font-weight: 600;
+    color: var(--accent-primary);
+    margin-bottom: var(--spacing-md);
+    padding-bottom: var(--spacing-sm);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.monitor-items {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-sm);
+}
+
+.monitor-item {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-md);
+    padding: var(--spacing-sm) var(--spacing-md);
+    background: rgba(0, 0, 0, 0.15);
+    border-radius: var(--radius-sm);
+    border-left: 3px solid transparent;
+}
+
+.monitor-item.item-ok {
+    border-left-color: var(--success);
+}
+
+.monitor-item.item-warning {
+    border-left-color: var(--warning);
+}
+
+.monitor-item.item-critical {
+    border-left-color: var(--danger);
+}
+
+.monitor-item-icon {
+    font-size: 1rem;
+    width: 24px;
+    text-align: center;
+}
+
+.monitor-item.item-ok .monitor-item-icon {
+    color: var(--success);
+}
+
+.monitor-item.item-warning .monitor-item-icon {
+    color: var(--warning);
+}
+
+.monitor-item.item-critical .monitor-item-icon {
+    color: var(--danger);
+}
+
+.monitor-item-name {
+    flex: 1;
+    font-family: var(--font-mono);
+    font-weight: 500;
+}
+
+.monitor-item-message {
+    font-size: 0.8125rem;
+    color: var(--text-muted);
+    max-width: 300px;
+    text-overflow: ellipsis;
+    overflow: hidden;
+    white-space: nowrap;
+}

@@ -622,8 +622,86 @@ function cmd_filemanager_sites_view(): array
     $content = file_get_contents($filemanager_path);
     $content = str_replace('$root_path = \'/usr/local\'', '$root_path = \'/usr/local/websites\'', $content);
     file_put_contents($filemanager_path, $content);
-    
+
     log_action('filemanager_sites_view', 'File Manager switched to sites view');
-    
+
     return ['success' => true, 'output' => 'Switched to sites view'];
+}
+
+/**
+ * Get latest daily monitor report
+ */
+function cmd_get_monitor_report(): array
+{
+    $report_dir = '/opt/jps-server-tools/logs/daily-monitor';
+
+    if (!is_dir($report_dir)) {
+        return ['success' => false, 'error' => 'Report directory not found'];
+    }
+
+    // Find the most recent report
+    $reports = glob($report_dir . '/*.json');
+    if (empty($reports)) {
+        return ['success' => false, 'error' => 'No reports found'];
+    }
+
+    // Sort by filename (date) descending
+    rsort($reports);
+    $latest_report = $reports[0];
+
+    $content = file_get_contents($latest_report);
+    if ($content === false) {
+        return ['success' => false, 'error' => 'Failed to read report'];
+    }
+
+    $data = json_decode($content, true);
+    if ($data === null) {
+        return ['success' => false, 'error' => 'Invalid report format'];
+    }
+
+    return [
+        'success' => true,
+        'report' => $data,
+        'report_file' => basename($latest_report),
+    ];
+}
+
+/**
+ * Get list of available monitor reports
+ */
+function cmd_list_monitor_reports(): array
+{
+    $report_dir = '/opt/jps-server-tools/logs/daily-monitor';
+
+    if (!is_dir($report_dir)) {
+        return ['success' => true, 'reports' => []];
+    }
+
+    $reports = glob($report_dir . '/*.json');
+    rsort($reports);
+
+    $report_list = [];
+    foreach (array_slice($reports, 0, 30) as $report) {
+        $filename = basename($report);
+        $date = str_replace('.json', '', $filename);
+        $report_list[] = [
+            'filename' => $filename,
+            'date' => $date,
+            'size' => filesize($report),
+        ];
+    }
+
+    return ['success' => true, 'reports' => $report_list];
+}
+
+/**
+ * Run daily monitor now
+ */
+function cmd_run_daily_monitor(): array
+{
+    $cmd = '/usr/local/bin/jps-daily-monitor --json';
+
+    log_action('run_daily_monitor', 'Manual daily monitor run');
+
+    return execute_command($cmd, true);
 }

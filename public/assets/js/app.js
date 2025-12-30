@@ -1234,6 +1234,191 @@
     }
 
     // ============================================
+    // Daily Monitor Functions
+    // ============================================
+
+    /**
+     * Load daily monitor status
+     */
+    async function loadMonitorStatus() {
+        const container = document.getElementById('monitor-status');
+        if (!container) return;
+
+        container.innerHTML = `
+            <div class="monitor-loading">
+                <div class="inline-spinner"></div>
+                Loading monitor status...
+            </div>
+        `;
+
+        const result = await api('get_monitor_report');
+
+        if (!result || !result.success) {
+            container.innerHTML = `
+                <div class="monitor-empty">
+                    <p>No monitor reports found</p>
+                    <p class="text-muted">Run "jps-daily-monitor" to generate a report</p>
+                </div>
+            `;
+            return;
+        }
+
+        const report = result.report;
+        const summary = report.summary || {};
+
+        // Determine overall status
+        let statusClass = 'monitor-healthy';
+        let statusIcon = '✅';
+        let statusText = 'Healthy';
+
+        if (report.status === 'critical') {
+            statusClass = 'monitor-critical';
+            statusIcon = '🚨';
+            statusText = 'Critical';
+        } else if (report.status === 'warning') {
+            statusClass = 'monitor-warning';
+            statusIcon = '⚠️';
+            statusText = 'Warning';
+        }
+
+        container.innerHTML = `
+            <div class="monitor-overview ${statusClass}">
+                <div class="monitor-status-badge">
+                    <span class="status-icon">${statusIcon}</span>
+                    <span class="status-text">${statusText}</span>
+                </div>
+                <div class="monitor-meta">
+                    <span class="monitor-date">Last check: ${escapeHtml(report.report_date || 'Unknown')}</span>
+                </div>
+            </div>
+            <div class="monitor-details">
+                <div class="monitor-stat">
+                    <span class="stat-label">Sites</span>
+                    <span class="stat-value">
+                        <span class="stat-ok">${summary.sites_healthy || 0} OK</span>
+                        ${summary.sites_warning > 0 ? `<span class="stat-warn">${summary.sites_warning} warn</span>` : ''}
+                        ${summary.sites_critical > 0 ? `<span class="stat-crit">${summary.sites_critical} crit</span>` : ''}
+                    </span>
+                </div>
+                <div class="monitor-stat">
+                    <span class="stat-label">SSL</span>
+                    <span class="stat-value">
+                        <span class="stat-ok">${summary.ssl_ok || 0} OK</span>
+                        ${summary.ssl_warning > 0 ? `<span class="stat-warn">${summary.ssl_warning} expiring</span>` : ''}
+                    </span>
+                </div>
+                <div class="monitor-stat">
+                    <span class="stat-label">Disk</span>
+                    <span class="stat-value ${summary.disk_status === 'warning' ? 'stat-warn' : summary.disk_status === 'critical' ? 'stat-crit' : ''}">${summary.disk_usage_percent || 0}%</span>
+                </div>
+                <div class="monitor-stat">
+                    <span class="stat-label">Memory</span>
+                    <span class="stat-value ${summary.memory_status === 'warning' ? 'stat-warn' : ''}">${summary.memory_usage_percent || 0}%</span>
+                </div>
+                <div class="monitor-stat">
+                    <span class="stat-label">Services</span>
+                    <span class="stat-value">
+                        ${summary.services_down > 0 ? `<span class="stat-crit">${summary.services_down} DOWN</span>` : '<span class="stat-ok">All running</span>'}
+                    </span>
+                </div>
+            </div>
+            ${(report.warnings?.length > 0 || report.criticals?.length > 0) ? `
+                <div class="monitor-issues">
+                    <button type="button" class="btn btn-sm btn-secondary" id="btn-view-monitor-details">View ${(report.warnings?.length || 0) + (report.criticals?.length || 0)} Issues</button>
+                </div>
+            ` : ''}
+        `;
+
+        // Attach handler for view details button
+        document.getElementById('btn-view-monitor-details')?.addEventListener('click', () => {
+            showMonitorDetails(report);
+        });
+    }
+
+    /**
+     * Show detailed monitor report
+     */
+    function showMonitorDetails(report) {
+        let content = `
+            <div class="monitor-report-modal">
+                <div class="report-header">
+                    <p><strong>Report Date:</strong> ${escapeHtml(report.report_date || 'Unknown')}</p>
+                    <p><strong>Server:</strong> ${escapeHtml(report.hostname || 'Unknown')} (${escapeHtml(report.server_ip || '')})</p>
+                </div>
+        `;
+
+        if (report.criticals && report.criticals.length > 0) {
+            content += `
+                <div class="report-section report-critical">
+                    <h4>Critical Issues (${report.criticals.length})</h4>
+                    <ul>
+                        ${report.criticals.map(msg => `<li>${escapeHtml(msg)}</li>`).join('')}
+                    </ul>
+                </div>
+            `;
+        }
+
+        if (report.warnings && report.warnings.length > 0) {
+            content += `
+                <div class="report-section report-warnings">
+                    <h4>Warnings (${report.warnings.length})</h4>
+                    <ul>
+                        ${report.warnings.map(msg => `<li>${escapeHtml(msg)}</li>`).join('')}
+                    </ul>
+                </div>
+            `;
+        }
+
+        if (report.sites && report.sites.length > 0) {
+            content += `
+                <div class="report-section">
+                    <h4>Site Details</h4>
+                    <div class="report-sites">
+                        ${report.sites.map(site => {
+                            const v = site.validation || {};
+                            const statusClass = v.failed > 0 ? 'site-critical' : v.warnings > 0 ? 'site-warning' : 'site-ok';
+                            return `
+                                <div class="report-site ${statusClass}">
+                                    <span class="site-domain">${escapeHtml(site.domain)}</span>
+                                    <span class="site-ssl">SSL: ${site.ssl_days_remaining || '?'} days</span>
+                                    <span class="site-validation">${v.passed || 0} passed, ${v.warnings || 0} warn, ${v.failed || 0} fail</span>
+                                </div>
+                            `;
+                        }).join('')}
+                    </div>
+                </div>
+            `;
+        }
+
+        content += '</div>';
+
+        showModal('Daily Monitor Report', content);
+    }
+
+    /**
+     * Run daily monitor now
+     */
+    async function runDailyMonitor() {
+        if (!confirm('Run a full daily monitor check now? This may take a few minutes.')) {
+            return;
+        }
+
+        showLoading('Running daily monitor...');
+
+        const result = await api('run_daily_monitor');
+
+        hideLoading();
+
+        if (!result) {
+            showToast('Failed to run daily monitor', 'error');
+            return;
+        }
+
+        showToast('Daily monitor completed', 'success');
+        loadMonitorStatus();
+    }
+
+    // ============================================
     // Activity Log Functions
     // ============================================
 
@@ -1494,6 +1679,7 @@
         loadServerStatus();
         loadSites();
         loadActivityLog();
+        loadMonitorStatus();
 
         // Start auto refresh
         startAutoRefresh();
@@ -1514,6 +1700,10 @@
         document.getElementById('btn-validate-all')?.addEventListener('click', validateAllSites);
         document.getElementById('btn-fm-assets')?.addEventListener('click', switchFMtoAssets);
         document.getElementById('btn-fm-sites')?.addEventListener('click', switchFMtoSites);
+
+        // Monitor buttons
+        document.getElementById('btn-refresh-monitor')?.addEventListener('click', loadMonitorStatus);
+        document.getElementById('btn-run-monitor')?.addEventListener('click', runDailyMonitor);
 
         // Modal close handlers
         document.querySelector('.modal-close')?.addEventListener('click', hideModal);

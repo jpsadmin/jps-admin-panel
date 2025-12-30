@@ -197,6 +197,23 @@ switch ($action) {
         $result = cmd_filemanager_sites_view();
         json_response($result);
         break;
+
+    case 'get_monitor_report':
+        $result = cmd_get_monitor_report();
+        json_response($result);
+        break;
+
+    case 'list_monitor_reports':
+        $result = cmd_list_monitor_reports();
+        json_response($result);
+        break;
+
+    case 'run_daily_monitor':
+        set_time_limit(300); // 5 minute timeout
+        $result = cmd_run_daily_monitor();
+        json_response($result);
+        break;
+
     default:
         json_response(['success' => false, 'error' => 'Unknown action'], 400);
 }

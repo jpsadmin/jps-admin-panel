@@ -207,8 +207,43 @@ defined('JPS_ADMIN') or die('Direct access not permitted');
         </div>
     </section>
 
+    <!-- Daily Monitor Panel -->
+    <section class="panel monitor-panel">
+        <div class="panel-header">
+            <h2 class="panel-title">
+                <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M22 12h-4l-3 9L9 3l-3 9H2"></path>
+                </svg>
+                Daily Monitor
+            </h2>
+            <div class="panel-actions">
+                <button type="button" class="btn btn-sm btn-secondary" id="btn-refresh-monitor" title="Refresh">
+                    <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <polyline points="23 4 23 10 17 10"></polyline>
+                        <polyline points="1 20 1 14 7 14"></polyline>
+                        <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path>
+                    </svg>
+                </button>
+                <button type="button" class="btn btn-sm btn-primary" id="btn-run-monitor" title="Run Check Now">
+                    <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <polygon points="5 3 19 12 5 21 5 3"></polygon>
+                    </svg>
+                    Run Now
+                </button>
+            </div>
+        </div>
+        <div class="panel-body">
+            <div class="monitor-status" id="monitor-status">
+                <div class="monitor-loading">
+                    <div class="inline-spinner"></div>
+                    Loading monitor status...
+                </div>
+            </div>
+        </div>
+    </section>
+
     <!-- Recent Activity Panel -->
-    <section class="panel activity-panel full-width">
+    <section class="panel activity-panel">
         <div class="panel-header">
             <h2 class="panel-title">
                 <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
