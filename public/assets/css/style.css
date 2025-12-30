@@ -169,6 +169,45 @@ a:hover {
     font-size: 0.875rem;
 }
 
+/* Header Quick Links */
+.header-center {
+    display: flex;
+    align-items: center;
+}
+
+.header-quick-links {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+}
+
+.header-quick-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: var(--spacing-xs) var(--spacing-sm);
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    text-decoration: none;
+    border-radius: var(--radius-sm);
+    transition: all var(--transition-fast);
+    white-space: nowrap;
+}
+
+.header-quick-link:hover {
+    color: var(--accent-primary);
+    background: rgba(0, 212, 255, 0.1);
+    text-decoration: none;
+}
+
+.header-quick-link .icon {
+    opacity: 0.6;
+}
+
+.header-quick-link:hover .icon {
+    opacity: 1;
+}
+
 /* ============================================
    Icons
    ============================================ */
@@ -476,9 +515,51 @@ a:hover {
 /* ============================================
    Quick Actions Panel
    ============================================ */
+.actions-container {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-md);
+}
+
+.actions-group {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-sm);
+}
+
+.actions-group-header {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--text-muted);
+    padding-bottom: var(--spacing-xs);
+}
+
+.actions-group-header .group-icon {
+    font-size: 0.875rem;
+}
+
+.actions-group.routine-actions .actions-group-header {
+    color: var(--accent-primary);
+}
+
+.actions-group.system-actions .actions-group-header {
+    color: var(--warning);
+}
+
+.actions-divider {
+    height: 1px;
+    background: linear-gradient(90deg, transparent, rgba(255, 159, 67, 0.3), transparent);
+    margin: var(--spacing-sm) 0;
+}
+
 .actions-grid {
     display: grid;
-    grid-template-columns: repeat(2, 1fr);
+    grid-template-columns: repeat(3, 1fr);
     gap: var(--spacing-sm);
 }
 
@@ -502,7 +583,36 @@ a:hover {
     transform: translateY(-2px);
 }
 
-/* Responsive: Stack to single column on small screens */
+/* System action buttons (warning/danger styling) */
+.action-btn.action-system {
+    border-color: rgba(255, 159, 67, 0.2);
+}
+
+.action-btn.action-system:hover {
+    background: rgba(255, 159, 67, 0.1);
+    border-color: var(--warning);
+}
+
+.action-btn.action-danger {
+    border-color: rgba(255, 68, 68, 0.2);
+}
+
+.action-btn.action-danger:hover {
+    background: rgba(255, 68, 68, 0.1);
+    border-color: var(--danger);
+}
+
+.action-btn .action-warning-icon {
+    color: var(--warning);
+}
+
+/* Responsive: Stack to fewer columns on smaller screens */
+@media (max-width: 768px) {
+    .actions-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+
 @media (max-width: 480px) {
     .actions-grid {
         grid-template-columns: 1fr;
@@ -666,37 +776,8 @@ a:hover {
 .main-footer {
     background: linear-gradient(145deg, var(--card-bg-start), var(--card-bg-end));
     border-top: 1px solid var(--card-border);
-    padding: var(--spacing-lg);
+    padding: var(--spacing-md) var(--spacing-lg);
     margin-top: auto;
-}
-
-.footer-links {
-    display: flex;
-    align-items: center;
-    gap: var(--spacing-md);
-    flex-wrap: wrap;
-    margin-bottom: var(--spacing-md);
-}
-
-.footer-label {
-    color: var(--text-muted);
-    font-size: 0.875rem;
-}
-
-.footer-link {
-    display: inline-flex;
-    align-items: center;
-    gap: var(--spacing-xs);
-    padding: var(--spacing-xs) var(--spacing-sm);
-    background: rgba(0, 0, 0, 0.2);
-    border-radius: var(--radius-sm);
-    font-size: 0.875rem;
-    transition: all var(--transition-fast);
-}
-
-.footer-link:hover {
-    background: rgba(0, 212, 255, 0.1);
-    text-decoration: none;
 }
 
 .footer-info {
@@ -1123,6 +1204,12 @@ a:hover {
 /* ============================================
    Responsive Design
    ============================================ */
+@media (max-width: 1200px) {
+    .header-quick-links {
+        display: none;
+    }
+}
+
 @media (max-width: 1024px) {
     .dashboard-grid {
         grid-template-columns: 1fr;
@@ -1525,4 +1612,257 @@ a:hover {
 
 .btn-icon.btn-warning:hover {
     background: rgba(255, 153, 0, 0.2);
+}
+
+/* ============================================
+   Validation Results Modal
+   ============================================ */
+.validation-results {
+    padding: var(--spacing-sm);
+}
+
+.validation-header {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-md);
+    padding: var(--spacing-md);
+    background: rgba(0, 0, 0, 0.2);
+    border-radius: var(--radius-md);
+    margin-bottom: var(--spacing-md);
+}
+
+.validation-header.validation-pass {
+    background: rgba(0, 255, 136, 0.1);
+    border: 1px solid rgba(0, 255, 136, 0.3);
+}
+
+.validation-header.validation-warn {
+    background: rgba(255, 170, 0, 0.1);
+    border: 1px solid rgba(255, 170, 0, 0.3);
+}
+
+.validation-header.validation-fail {
+    background: rgba(255, 68, 68, 0.1);
+    border: 1px solid rgba(255, 68, 68, 0.3);
+}
+
+.validation-status-icon {
+    font-size: 1.5rem;
+}
+
+.validation-status-icon.validation-pass,
+.validation-pass .validation-status-icon {
+    color: var(--success);
+}
+
+.validation-status-icon.validation-warn,
+.validation-warn .validation-status-icon {
+    color: var(--warning);
+}
+
+.validation-status-icon.validation-fail,
+.validation-fail .validation-status-icon {
+    color: var(--danger);
+}
+
+.validation-domain {
+    font-family: var(--font-mono);
+    font-size: 1.125rem;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.validation-summary {
+    display: flex;
+    gap: var(--spacing-md);
+    margin-bottom: var(--spacing-md);
+    padding: var(--spacing-sm) var(--spacing-md);
+    background: rgba(0, 0, 0, 0.2);
+    border-radius: var(--radius-md);
+}
+
+.validation-summary .summary-item {
+    font-size: 0.875rem;
+    font-weight: 500;
+}
+
+.summary-pass {
+    color: var(--success);
+}
+
+.summary-warn {
+    color: var(--warning);
+}
+
+.summary-fail {
+    color: var(--danger);
+}
+
+.validation-checks {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-xs);
+    max-height: 400px;
+    overflow-y: auto;
+}
+
+.validation-check {
+    display: grid;
+    grid-template-columns: 24px 1fr auto;
+    align-items: center;
+    gap: var(--spacing-sm);
+    padding: var(--spacing-sm) var(--spacing-md);
+    background: rgba(0, 0, 0, 0.15);
+    border-radius: var(--radius-sm);
+    border-left: 3px solid transparent;
+}
+
+.validation-check.validation-pass {
+    border-left-color: var(--success);
+}
+
+.validation-check.validation-warn {
+    border-left-color: var(--warning);
+}
+
+.validation-check.validation-fail {
+    border-left-color: var(--danger);
+}
+
+.validation-check .check-icon {
+    font-size: 1rem;
+    text-align: center;
+}
+
+.validation-check.validation-pass .check-icon {
+    color: var(--success);
+}
+
+.validation-check.validation-warn .check-icon {
+    color: var(--warning);
+}
+
+.validation-check.validation-fail .check-icon {
+    color: var(--danger);
+}
+
+.validation-check .check-name {
+    font-weight: 500;
+    color: var(--text-primary);
+}
+
+.validation-check .check-message {
+    font-size: 0.8125rem;
+    color: var(--text-muted);
+    text-align: right;
+}
+
+.validation-message.error {
+    color: var(--danger);
+    padding: var(--spacing-md);
+    background: rgba(255, 68, 68, 0.1);
+    border-radius: var(--radius-md);
+}
+
+.validation-output {
+    background: rgba(0, 0, 0, 0.3);
+    border-radius: var(--radius-md);
+    padding: var(--spacing-md);
+    max-height: 400px;
+    overflow-y: auto;
+    font-family: var(--font-mono);
+    font-size: 0.8125rem;
+    white-space: pre-wrap;
+    color: var(--text-secondary);
+}
+
+/* Validation Summary Modal (All Sites) */
+.validation-summary-modal {
+    padding: var(--spacing-sm);
+}
+
+.validation-overall-summary {
+    display: flex;
+    justify-content: center;
+    gap: var(--spacing-lg);
+    padding: var(--spacing-md);
+    background: rgba(0, 0, 0, 0.2);
+    border-radius: var(--radius-md);
+    margin-bottom: var(--spacing-md);
+}
+
+.validation-overall-summary .summary-item {
+    font-size: 1rem;
+    font-weight: 600;
+}
+
+.validation-sites-list {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-xs);
+    max-height: 400px;
+    overflow-y: auto;
+}
+
+.validation-site-row {
+    display: grid;
+    grid-template-columns: 24px 1fr auto auto;
+    align-items: center;
+    gap: var(--spacing-md);
+    padding: var(--spacing-sm) var(--spacing-md);
+    background: rgba(0, 0, 0, 0.15);
+    border-radius: var(--radius-sm);
+    border-left: 3px solid transparent;
+}
+
+.validation-site-row.validation-pass {
+    border-left-color: var(--success);
+}
+
+.validation-site-row.validation-warn {
+    border-left-color: var(--warning);
+}
+
+.validation-site-row.validation-fail {
+    border-left-color: var(--danger);
+}
+
+.validation-site-row .site-icon {
+    font-size: 1rem;
+    text-align: center;
+}
+
+.validation-site-row.validation-pass .site-icon {
+    color: var(--success);
+}
+
+.validation-site-row.validation-warn .site-icon {
+    color: var(--warning);
+}
+
+.validation-site-row.validation-fail .site-icon {
+    color: var(--danger);
+}
+
+.validation-site-row .site-domain {
+    font-family: var(--font-mono);
+    font-weight: 500;
+    color: var(--text-primary);
+}
+
+.validation-site-row .site-message {
+    font-size: 0.8125rem;
+    color: var(--text-muted);
+}
+
+/* Validate button styling */
+.btn-icon.btn-validate {
+    background: rgba(0, 255, 136, 0.1);
+    color: var(--success);
+    font-weight: bold;
+}
+
+.btn-icon.btn-validate:hover {
+    background: rgba(0, 255, 136, 0.2);
+    border-color: var(--success);
 }

@@ -351,6 +351,7 @@
                 <td><span class="status-badge ${statusClass}">${statusText}</span></td>
                 <td class="actions-cell">
                     <div class="btn-group">
+                        <button type="button" class="btn-icon btn-validate" data-domain="${escapeHtml(site.domain)}" title="Validate Site">✓</button>
                         <button type="button" class="btn-icon btn-credentials" data-domain="${escapeHtml(site.domain)}" title="View Credentials">📋</button>
                         <button type="button" class="btn-icon btn-checkpoint" data-domain="${escapeHtml(site.domain)}" title="Create Checkpoint">💾</button>
                         ${suspendBtn}
@@ -369,6 +370,11 @@
      * Attach event listeners to site action buttons
      */
     function attachSiteEventListeners() {
+        // Validate
+        document.querySelectorAll('.btn-validate').forEach(btn => {
+            btn.addEventListener('click', () => validateSite(btn.dataset.domain));
+        });
+
         // Credentials
         document.querySelectorAll('.btn-credentials').forEach(btn => {
             btn.addEventListener('click', () => showCredentials(btn.dataset.domain));
@@ -1002,6 +1008,232 @@
     }
 
     // ============================================
+    // Site Validation Functions
+    // ============================================
+
+    /**
+     * Validate a single site
+     */
+    async function validateSite(domain) {
+        showLoading('Validating site...');
+
+        const result = await api('validate_site', { domain: domain });
+
+        hideLoading();
+
+        if (!result) {
+            showToast('Failed to validate site: Network error', 'error');
+            return;
+        }
+
+        // Parse and display validation results
+        showValidationModal(domain, result);
+    }
+
+    /**
+     * Validate all sites
+     */
+    async function validateAllSites() {
+        if (!confirm('This will validate all sites. This may take a few minutes. Continue?')) {
+            return;
+        }
+
+        showLoading('Validating all sites...');
+
+        const result = await api('validate_all_sites');
+
+        hideLoading();
+
+        if (!result || !result.success) {
+            showToast('Failed to validate sites: ' + (result?.error || 'Unknown error'), 'error');
+            return;
+        }
+
+        // Show summary modal
+        showValidationSummaryModal(result.results);
+    }
+
+    /**
+     * Show validation results modal for a single site
+     */
+    function showValidationModal(domain, result) {
+        let content = '';
+
+        if (!result.success && result.error) {
+            content = `
+                <div class="validation-results validation-error">
+                    <div class="validation-header">
+                        <span class="validation-status-icon validation-fail">✗</span>
+                        <span class="validation-domain">${escapeHtml(domain)}</span>
+                    </div>
+                    <div class="validation-message error">${escapeHtml(result.error)}</div>
+                </div>
+            `;
+        } else {
+            // Try to parse JSON output from jps-validate-site
+            let validationData = null;
+            if (result.output) {
+                try {
+                    validationData = JSON.parse(result.output);
+                } catch (e) {
+                    // If not JSON, just display raw output
+                    validationData = null;
+                }
+            }
+
+            if (validationData) {
+                content = renderValidationResults(domain, validationData);
+            } else {
+                // Fallback: display raw output
+                content = `
+                    <div class="validation-results">
+                        <div class="validation-header">
+                            <span class="validation-domain">${escapeHtml(domain)}</span>
+                        </div>
+                        <pre class="validation-output">${ansiToHtml(result.output || 'No output')}</pre>
+                    </div>
+                `;
+            }
+        }
+
+        showModal('Site Validation: ' + domain, content);
+    }
+
+    /**
+     * Render validation results with color coding
+     */
+    function renderValidationResults(domain, data) {
+        const checks = data.checks || [];
+        const summary = data.summary || {};
+
+        let checksHtml = '';
+        checks.forEach(check => {
+            const statusClass = check.status === 'pass' ? 'validation-pass' :
+                               check.status === 'warn' ? 'validation-warn' : 'validation-fail';
+            const statusIcon = check.status === 'pass' ? '✓' :
+                              check.status === 'warn' ? '⚠' : '✗';
+
+            checksHtml += `
+                <div class="validation-check ${statusClass}">
+                    <span class="check-icon">${statusIcon}</span>
+                    <span class="check-name">${escapeHtml(check.name || check.check)}</span>
+                    <span class="check-message">${escapeHtml(check.message || '')}</span>
+                </div>
+            `;
+        });
+
+        const overallStatus = summary.failed > 0 ? 'fail' :
+                             summary.warnings > 0 ? 'warn' : 'pass';
+        const overallIcon = overallStatus === 'pass' ? '✓' :
+                           overallStatus === 'warn' ? '⚠' : '✗';
+        const overallClass = 'validation-' + overallStatus;
+
+        return `
+            <div class="validation-results">
+                <div class="validation-header ${overallClass}">
+                    <span class="validation-status-icon">${overallIcon}</span>
+                    <span class="validation-domain">${escapeHtml(domain)}</span>
+                </div>
+                <div class="validation-summary">
+                    <span class="summary-item summary-pass">✓ ${summary.passed || 0} passed</span>
+                    <span class="summary-item summary-warn">⚠ ${summary.warnings || 0} warnings</span>
+                    <span class="summary-item summary-fail">✗ ${summary.failed || 0} failed</span>
+                </div>
+                <div class="validation-checks">
+                    ${checksHtml}
+                </div>
+            </div>
+        `;
+    }
+
+    /**
+     * Show validation summary modal for all sites
+     */
+    function showValidationSummaryModal(results) {
+        let sitesHtml = '';
+        let totalPassed = 0;
+        let totalWarnings = 0;
+        let totalFailed = 0;
+
+        for (const [domain, result] of Object.entries(results)) {
+            let siteStatus = 'unknown';
+            let siteIcon = '?';
+            let siteMessage = '';
+
+            if (!result.success && result.error) {
+                siteStatus = 'fail';
+                siteIcon = '✗';
+                siteMessage = result.error;
+                totalFailed++;
+            } else if (result.output) {
+                try {
+                    const data = JSON.parse(result.output);
+                    const summary = data.summary || {};
+
+                    if (summary.failed > 0) {
+                        siteStatus = 'fail';
+                        siteIcon = '✗';
+                        totalFailed++;
+                    } else if (summary.warnings > 0) {
+                        siteStatus = 'warn';
+                        siteIcon = '⚠';
+                        totalWarnings++;
+                    } else {
+                        siteStatus = 'pass';
+                        siteIcon = '✓';
+                        totalPassed++;
+                    }
+
+                    siteMessage = `${summary.passed || 0} passed, ${summary.warnings || 0} warnings, ${summary.failed || 0} failed`;
+                } catch (e) {
+                    siteStatus = result.success ? 'pass' : 'fail';
+                    siteIcon = result.success ? '✓' : '✗';
+                    if (result.success) totalPassed++;
+                    else totalFailed++;
+                }
+            } else {
+                siteStatus = result.success ? 'pass' : 'fail';
+                siteIcon = result.success ? '✓' : '✗';
+                if (result.success) totalPassed++;
+                else totalFailed++;
+            }
+
+            sitesHtml += `
+                <div class="validation-site-row validation-${siteStatus}">
+                    <span class="site-icon">${siteIcon}</span>
+                    <span class="site-domain">${escapeHtml(domain)}</span>
+                    <span class="site-message">${escapeHtml(siteMessage)}</span>
+                    <button type="button" class="btn btn-sm btn-secondary btn-view-details" data-domain="${escapeHtml(domain)}">Details</button>
+                </div>
+            `;
+        }
+
+        const content = `
+            <div class="validation-summary-modal">
+                <div class="validation-overall-summary">
+                    <span class="summary-item summary-pass">✓ ${totalPassed} sites OK</span>
+                    <span class="summary-item summary-warn">⚠ ${totalWarnings} warnings</span>
+                    <span class="summary-item summary-fail">✗ ${totalFailed} failed</span>
+                </div>
+                <div class="validation-sites-list">
+                    ${sitesHtml}
+                </div>
+            </div>
+        `;
+
+        showModal('Validation Summary - All Sites', content);
+
+        // Attach click handlers for detail buttons
+        document.querySelectorAll('.btn-view-details').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const domain = btn.dataset.domain;
+                const siteResult = results[domain];
+                showValidationModal(domain, siteResult);
+            });
+        });
+    }
+
+    // ============================================
     // Activity Log Functions
     // ============================================
 
@@ -1257,6 +1489,7 @@
         document.getElementById('btn-deploy-site')?.addEventListener('click', showDeploySiteModal);
         document.getElementById('btn-save-snapshot')?.addEventListener('click', saveAuditSnapshot);
         document.getElementById('btn-compare-drift')?.addEventListener('click', compareDrift);
+        document.getElementById('btn-validate-all')?.addEventListener('click', validateAllSites);
 
         // Modal close handlers
         document.querySelector('.modal-close')?.addEventListener('click', hideModal);

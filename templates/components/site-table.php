@@ -38,6 +38,7 @@ function render_site_row(array $site): string
     <td><span class="status-badge {$status_class}">{$status_text}</span></td>
     <td class="actions-cell">
         <div class="btn-group">
+            <button type="button" class="btn-icon btn-validate" data-domain="{$domain}" title="Validate Site">&#x2713;</button>
             <button type="button" class="btn-icon btn-credentials" data-domain="{$domain}" title="View Credentials">&#x1F4CB;</button>
             <button type="button" class="btn-icon btn-checkpoint" data-domain="{$domain}" title="Create Checkpoint">&#x1F4BE;</button>
             {$suspend_btn}

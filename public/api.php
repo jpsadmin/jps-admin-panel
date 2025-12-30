@@ -179,6 +179,18 @@ switch ($action) {
         json_response($result);
         break;
 
+    case 'validate_site':
+        $domain = $input['domain'] ?? '';
+        $result = cmd_validate_site($domain);
+        json_response($result);
+        break;
+
+    case 'validate_all_sites':
+        set_time_limit(600); // 10 minute timeout for validating all sites
+        $result = cmd_validate_all_sites();
+        json_response($result);
+        break;
+
     default:
         json_response(['success' => false, 'error' => 'Unknown action'], 400);
 }

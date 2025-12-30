@@ -523,6 +523,42 @@ function cmd_get_site_info(string $domain): array
 }
 
 /**
+ * Validate a single site
+ */
+function cmd_validate_site(string $domain): array
+{
+    $domain = validate_domain($domain);
+    if (!$domain) {
+        return ['success' => false, 'error' => 'Invalid domain'];
+    }
+
+    $cmd = '/usr/local/bin/jps-validate-site ' . escapeshellarg($domain) . ' --json';
+
+    log_action('validate_site', $domain);
+
+    return execute_command($cmd, true);
+}
+
+/**
+ * Validate all sites
+ */
+function cmd_validate_all_sites(): array
+{
+    $sites = get_site_list();
+    $results = [];
+
+    foreach ($sites as $site) {
+        $cmd = '/usr/local/bin/jps-validate-site ' . escapeshellarg($site) . ' --json';
+        $result = execute_command($cmd, true);
+        $results[$site] = $result;
+    }
+
+    log_action('validate_all_sites', 'Validated ' . count($sites) . ' sites');
+
+    return ['success' => true, 'results' => $results];
+}
+
+/**
  * Reinstall WordPress
  */
 function cmd_reinstall_wordpress(string $domain, bool $preserve_uploads = true): array

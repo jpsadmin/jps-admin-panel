@@ -90,31 +90,64 @@ defined('JPS_ADMIN') or die('Direct access not permitted');
             </h2>
         </div>
         <div class="panel-body">
-            <div class="actions-grid">
-                <button type="button" class="action-btn" id="btn-restart-ols" data-action="restart_ols">
-                    <span class="action-icon">&#x1F504;</span>
-                    <span class="action-label">Restart OpenLiteSpeed</span>
-                </button>
-                <button type="button" class="action-btn" id="btn-run-audit" data-action="run_audit">
-                    <span class="action-icon">&#x1F4CA;</span>
-                    <span class="action-label">Run Full Audit</span>
-                </button>
-                <button type="button" class="action-btn" id="btn-git-pull" data-action="git_pull">
-                    <span class="action-icon">&#x1F504;</span>
-                    <span class="action-label">Pull Git Updates</span>
-                </button>
-                <button type="button" class="action-btn" id="btn-save-snapshot" data-action="save_snapshot">
-                    <span class="action-icon">&#x1F4BE;</span>
-                    <span class="action-label">Save Audit Snapshot</span>
-                </button>
-                <button type="button" class="action-btn" id="btn-compare-drift" data-action="compare_drift">
-                    <span class="action-icon">&#x1F50D;</span>
-                    <span class="action-label">Compare Drift</span>
-                </button>
-                <a href="/filemanager.php" class="action-btn" target="_blank" style="text-decoration: none;">
-                    <span class="action-icon">&#x1F4C1;</span>
-                    <span class="action-label">File Manager</span>
-                </a>
+            <div class="actions-container">
+                <!-- Routine Actions -->
+                <div class="actions-group routine-actions">
+                    <div class="actions-group-header">
+                        <span class="group-icon">&#x1F4CB;</span>
+                        <span>Routine Actions</span>
+                    </div>
+                    <div class="actions-grid">
+                        <button type="button" class="action-btn" id="btn-run-audit" data-action="run_audit">
+                            <span class="action-icon">&#x1F4CA;</span>
+                            <span class="action-label">Run Full Audit</span>
+                        </button>
+                        <button type="button" class="action-btn" id="btn-save-snapshot" data-action="save_snapshot">
+                            <span class="action-icon">&#x1F4BE;</span>
+                            <span class="action-label">Save Audit Snapshot</span>
+                        </button>
+                        <button type="button" class="action-btn" id="btn-compare-drift" data-action="compare_drift">
+                            <span class="action-icon">&#x1F50D;</span>
+                            <span class="action-label">Compare Drift</span>
+                        </button>
+                        <a href="filemanager.php" class="action-btn" target="_blank" style="text-decoration: none;">
+                            <span class="action-icon">&#x1F4C1;</span>
+                            <span class="action-label">File Manager</span>
+                        </a>
+                        <a href="filemanager.php?path=/var/www/admin-panel/public/assets" class="action-btn" target="_blank" style="text-decoration: none;">
+                            <span class="action-icon">&#x1F3A8;</span>
+                            <span class="action-label">FM: Assets View</span>
+                        </a>
+                        <a href="filemanager.php?path=/var/www/sites" class="action-btn" target="_blank" style="text-decoration: none;">
+                            <span class="action-icon">&#x1F310;</span>
+                            <span class="action-label">FM: Sites View</span>
+                        </a>
+                    </div>
+                </div>
+
+                <div class="actions-divider"></div>
+
+                <!-- System Actions -->
+                <div class="actions-group system-actions">
+                    <div class="actions-group-header">
+                        <span class="group-icon">&#x26A0;&#xFE0F;</span>
+                        <span>System Actions</span>
+                    </div>
+                    <div class="actions-grid">
+                        <button type="button" class="action-btn action-system action-danger" id="btn-restart-ols" data-action="restart_ols">
+                            <span class="action-icon action-warning-icon">&#x1F504;</span>
+                            <span class="action-label">Restart OpenLiteSpeed</span>
+                        </button>
+                        <button type="button" class="action-btn action-system" id="btn-git-pull" data-action="git_pull">
+                            <span class="action-icon">&#x2B07;&#xFE0F;</span>
+                            <span class="action-label">Pull Git Updates</span>
+                        </button>
+                        <button type="button" class="action-btn action-system" id="btn-validate-all" data-action="validate_all">
+                            <span class="action-icon">&#x2705;</span>
+                            <span class="action-label">Validate All Sites</span>
+                        </button>
+                    </div>
+                </div>
             </div>
         </div>
     </section>
