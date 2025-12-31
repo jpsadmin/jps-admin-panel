@@ -56,6 +56,7 @@ return [
         'jps-dns-check' => '/usr/local/bin/jps-dns-check',
         'jps-reinstall-wp' => '/usr/local/bin/jps-reinstall-wp',
         'jps-optimize-site' => '/usr/local/bin/jps-optimize-site',
+        'jps-perf-audit' => '/usr/local/bin/jps-perf-audit',
         'lswsctrl' => '/usr/local/lsws/bin/lswsctrl',
         'git' => '/usr/bin/git',
         'chown' => '/usr/bin/chown',

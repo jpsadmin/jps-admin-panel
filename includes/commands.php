@@ -1038,3 +1038,39 @@ function cmd_audit_optimization(string $domain): array
 
     return $result;
 }
+
+/**
+ * Run performance audit on a site using PageSpeed Insights
+ */
+function cmd_run_perf_audit(string $domain, string $strategy = 'mobile'): array
+{
+    $domain = validate_domain($domain);
+    if (!$domain) {
+        return ['success' => false, 'error' => 'Invalid domain'];
+    }
+
+    $config = get_config();
+    $strategy = in_array($strategy, ['mobile', 'desktop'], true) ? $strategy : 'mobile';
+
+    $cmd = escapeshellcmd($config['commands']['jps-perf-audit']);
+    $cmd .= ' ' . escapeshellarg($domain);
+    $cmd .= ' --strategy ' . escapeshellarg($strategy);
+    $cmd .= ' --json --save';
+
+    log_action('perf_audit', "{$domain} ({$strategy})");
+
+    $result = execute_command($cmd, 180); // 3 minute timeout for API call
+
+    if ($result['success'] && !empty($result['output'])) {
+        $audit = json_decode($result['output'], true);
+        if ($audit !== null) {
+            return ['success' => true, 'audit' => $audit];
+        }
+    }
+
+    return [
+        'success' => false,
+        'error' => $result['error'] ?? 'Performance audit failed',
+        'output' => $result['output'] ?? '',
+    ];
+}

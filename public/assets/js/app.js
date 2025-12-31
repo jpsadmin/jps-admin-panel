@@ -355,6 +355,7 @@
                         <button type="button" class="btn-icon btn-credentials" data-domain="${escapeHtml(site.domain)}" title="View Credentials">📋</button>
                         <button type="button" class="btn-icon btn-checkpoint" data-domain="${escapeHtml(site.domain)}" title="Create Checkpoint">💾</button>
                         <button type="button" class="btn-icon btn-optimize" data-domain="${escapeHtml(site.domain)}" title="Optimize Site">⚡</button>
+                        <button type="button" class="btn-icon btn-perf-audit" data-domain="${escapeHtml(site.domain)}" title="Performance Audit">📊</button>
                         ${suspendBtn}
                         <button type="button" class="btn-icon btn-archive" data-domain="${escapeHtml(site.domain)}" title="Archive Site">📦</button>
                         <button type="button" class="btn-icon btn-logs" data-domain="${escapeHtml(site.domain)}" title="View Logs">📁</button>
@@ -389,6 +390,11 @@
         // Optimize
         document.querySelectorAll('.btn-optimize').forEach(btn => {
             btn.addEventListener('click', () => showOptimizeModal(btn.dataset.domain));
+        });
+
+        // Performance Audit
+        document.querySelectorAll('.btn-perf-audit').forEach(btn => {
+            btn.addEventListener('click', () => showPerfAuditModal(btn.dataset.domain));
         });
 
         // Suspend
@@ -2545,6 +2551,307 @@
 
             if (result.output) {
                 showModal('Optimization Error', `<pre>${ansiToHtml(result.output)}</pre>`);
+            }
+        }
+    }
+
+    // ============================================
+    // Performance Audit (PageSpeed Insights)
+    // ============================================
+
+    /**
+     * Performance audit modal state
+     */
+    let perfAuditState = {
+        domain: '',
+        strategy: 'mobile',
+        result: null
+    };
+
+    /**
+     * Show performance audit modal for a site
+     */
+    function showPerfAuditModal(domain) {
+        perfAuditState = {
+            domain: domain,
+            strategy: 'mobile',
+            result: null
+        };
+
+        renderPerfAuditModal();
+    }
+
+    /**
+     * Render the performance audit modal
+     */
+    function renderPerfAuditModal() {
+        const domain = perfAuditState.domain;
+        const strategy = perfAuditState.strategy;
+        const result = perfAuditState.result;
+
+        let resultHtml = '';
+        if (result) {
+            resultHtml = renderPerfAuditResults(result);
+        } else {
+            resultHtml = `
+                <div class="perf-audit-placeholder">
+                    <p>Click "Run Audit" to analyze performance using Google PageSpeed Insights.</p>
+                    <p class="text-muted">This may take up to 60 seconds.</p>
+                </div>
+            `;
+        }
+
+        const content = `
+            <div class="perf-audit-modal">
+                <div class="perf-audit-header">
+                    <span class="perf-audit-icon">📊</span>
+                    <div class="perf-audit-info">
+                        <h3>Performance Audit</h3>
+                        <p class="domain-display">${escapeHtml(domain)}</p>
+                    </div>
+                </div>
+
+                <div class="strategy-selector">
+                    <label class="strategy-option ${strategy === 'mobile' ? 'active' : ''}">
+                        <input type="radio" name="strategy" value="mobile" ${strategy === 'mobile' ? 'checked' : ''}>
+                        <span class="strategy-icon">📱</span>
+                        <span>Mobile</span>
+                    </label>
+                    <label class="strategy-option ${strategy === 'desktop' ? 'active' : ''}">
+                        <input type="radio" name="strategy" value="desktop" ${strategy === 'desktop' ? 'checked' : ''}>
+                        <span class="strategy-icon">💻</span>
+                        <span>Desktop</span>
+                    </label>
+                </div>
+
+                <div class="perf-audit-results">
+                    ${resultHtml}
+                </div>
+
+                <div class="perf-audit-actions">
+                    <button type="button" class="btn btn-secondary btn-cancel">Close</button>
+                    <button type="button" class="btn btn-primary btn-run-audit">
+                        🚀 Run Audit
+                    </button>
+                </div>
+            </div>
+        `;
+
+        showModal('Performance Audit', content);
+        attachPerfAuditListeners();
+    }
+
+    /**
+     * Render performance audit results
+     */
+    function renderPerfAuditResults(audit) {
+        const scores = audit.scores || {};
+        const metrics = audit.metrics || {};
+        const timestamp = audit.timestamp || '';
+
+        // Helper to get score class
+        const getScoreClass = (score) => {
+            if (score >= 90) return 'score-good';
+            if (score >= 50) return 'score-moderate';
+            return 'score-poor';
+        };
+
+        // Helper to format time
+        const formatTime = (ms) => {
+            if (ms >= 1000) return (ms / 1000).toFixed(1) + 's';
+            return Math.round(ms) + 'ms';
+        };
+
+        // Helper to get metric status
+        const getMetricStatus = (name, value) => {
+            const thresholds = {
+                fcp: { good: 1800, poor: 3000 },
+                lcp: { good: 2500, poor: 4000 },
+                tbt: { good: 200, poor: 600 },
+                cls: { good: 0.1, poor: 0.25 },
+                speed_index: { good: 3400, poor: 5800 }
+            };
+            const t = thresholds[name];
+            if (!t) return 'unknown';
+            if (value <= t.good) return 'good';
+            if (value <= t.poor) return 'moderate';
+            return 'poor';
+        };
+
+        return `
+            <div class="perf-audit-timestamp">
+                Audited: ${timestamp ? new Date(timestamp).toLocaleString() : 'Just now'}
+            </div>
+
+            <div class="score-cards">
+                <div class="score-card ${getScoreClass(scores.performance || 0)}">
+                    <div class="score-value">${scores.performance || 0}</div>
+                    <div class="score-label">Performance</div>
+                    <div class="score-bar">
+                        <div class="score-bar-fill" style="width: ${scores.performance || 0}%"></div>
+                    </div>
+                </div>
+                <div class="score-card ${getScoreClass(scores.accessibility || 0)}">
+                    <div class="score-value">${scores.accessibility || 0}</div>
+                    <div class="score-label">Accessibility</div>
+                    <div class="score-bar">
+                        <div class="score-bar-fill" style="width: ${scores.accessibility || 0}%"></div>
+                    </div>
+                </div>
+                <div class="score-card ${getScoreClass(scores.best_practices || 0)}">
+                    <div class="score-value">${scores.best_practices || 0}</div>
+                    <div class="score-label">Best Practices</div>
+                    <div class="score-bar">
+                        <div class="score-bar-fill" style="width: ${scores.best_practices || 0}%"></div>
+                    </div>
+                </div>
+                <div class="score-card ${getScoreClass(scores.seo || 0)}">
+                    <div class="score-value">${scores.seo || 0}</div>
+                    <div class="score-label">SEO</div>
+                    <div class="score-bar">
+                        <div class="score-bar-fill" style="width: ${scores.seo || 0}%"></div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="core-web-vitals">
+                <h4>Core Web Vitals</h4>
+                <table class="vitals-table">
+                    <thead>
+                        <tr>
+                            <th>Metric</th>
+                            <th>Value</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr class="vital-${getMetricStatus('fcp', metrics.fcp || 0)}">
+                            <td><strong>FCP</strong> First Contentful Paint</td>
+                            <td>${formatTime(metrics.fcp || 0)}</td>
+                            <td><span class="vital-status">${getMetricStatus('fcp', metrics.fcp || 0) === 'good' ? '✓ Good' : getMetricStatus('fcp', metrics.fcp || 0) === 'moderate' ? '○ Needs Work' : '✗ Poor'}</span></td>
+                        </tr>
+                        <tr class="vital-${getMetricStatus('lcp', metrics.lcp || 0)}">
+                            <td><strong>LCP</strong> Largest Contentful Paint</td>
+                            <td>${formatTime(metrics.lcp || 0)}</td>
+                            <td><span class="vital-status">${getMetricStatus('lcp', metrics.lcp || 0) === 'good' ? '✓ Good' : getMetricStatus('lcp', metrics.lcp || 0) === 'moderate' ? '○ Needs Work' : '✗ Poor'}</span></td>
+                        </tr>
+                        <tr class="vital-${getMetricStatus('tbt', metrics.tbt || 0)}">
+                            <td><strong>TBT</strong> Total Blocking Time</td>
+                            <td>${formatTime(metrics.tbt || 0)}</td>
+                            <td><span class="vital-status">${getMetricStatus('tbt', metrics.tbt || 0) === 'good' ? '✓ Good' : getMetricStatus('tbt', metrics.tbt || 0) === 'moderate' ? '○ Needs Work' : '✗ Poor'}</span></td>
+                        </tr>
+                        <tr class="vital-${getMetricStatus('cls', metrics.cls || 0)}">
+                            <td><strong>CLS</strong> Cumulative Layout Shift</td>
+                            <td>${(metrics.cls || 0).toFixed(3)}</td>
+                            <td><span class="vital-status">${getMetricStatus('cls', metrics.cls || 0) === 'good' ? '✓ Good' : getMetricStatus('cls', metrics.cls || 0) === 'moderate' ? '○ Needs Work' : '✗ Poor'}</span></td>
+                        </tr>
+                        <tr class="vital-${getMetricStatus('speed_index', metrics.speed_index || 0)}">
+                            <td><strong>SI</strong> Speed Index</td>
+                            <td>${formatTime(metrics.speed_index || 0)}</td>
+                            <td><span class="vital-status">${getMetricStatus('speed_index', metrics.speed_index || 0) === 'good' ? '✓ Good' : getMetricStatus('speed_index', metrics.speed_index || 0) === 'moderate' ? '○ Needs Work' : '✗ Poor'}</span></td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            ${audit.recommendations && audit.recommendations.length > 0 ? `
+                <div class="perf-recommendations">
+                    <h4>Top Recommendations</h4>
+                    <ul>
+                        ${audit.recommendations.map(r => `<li>${escapeHtml(r)}</li>`).join('')}
+                    </ul>
+                </div>
+            ` : ''}
+        `;
+    }
+
+    /**
+     * Attach listeners for performance audit modal
+     */
+    function attachPerfAuditListeners() {
+        // Cancel button
+        document.querySelector('.btn-cancel')?.addEventListener('click', hideModal);
+
+        // Strategy selection
+        document.querySelectorAll('input[name="strategy"]').forEach(radio => {
+            radio.addEventListener('change', () => {
+                perfAuditState.strategy = radio.value;
+                // Update visual state
+                document.querySelectorAll('.strategy-option').forEach(opt => {
+                    opt.classList.remove('active');
+                });
+                radio.closest('.strategy-option').classList.add('active');
+            });
+        });
+
+        // Run audit button
+        document.querySelector('.btn-run-audit')?.addEventListener('click', runPerfAudit);
+    }
+
+    /**
+     * Run performance audit
+     */
+    async function runPerfAudit() {
+        const domain = perfAuditState.domain;
+        const strategy = perfAuditState.strategy;
+
+        // Update button state
+        const btn = document.querySelector('.btn-run-audit');
+        if (btn) {
+            btn.disabled = true;
+            btn.innerHTML = '⏳ Running...';
+        }
+
+        // Show loading in results area
+        const resultsDiv = document.querySelector('.perf-audit-results');
+        if (resultsDiv) {
+            resultsDiv.innerHTML = `
+                <div class="perf-audit-loading">
+                    <div class="loading-spinner"></div>
+                    <p>Running PageSpeed Insights audit...</p>
+                    <p class="text-muted">This may take up to 60 seconds.</p>
+                </div>
+            `;
+        }
+
+        const result = await api('run_perf_audit', {
+            domain: domain,
+            strategy: strategy
+        });
+
+        // Restore button
+        if (btn) {
+            btn.disabled = false;
+            btn.innerHTML = '🚀 Run Audit';
+        }
+
+        if (!result) {
+            showToast('Failed to run performance audit: Network error', 'error');
+            if (resultsDiv) {
+                resultsDiv.innerHTML = `
+                    <div class="perf-audit-error">
+                        <p>Failed to connect to the server. Please try again.</p>
+                    </div>
+                `;
+            }
+            return;
+        }
+
+        if (result.success && result.audit) {
+            perfAuditState.result = result.audit;
+            if (resultsDiv) {
+                resultsDiv.innerHTML = renderPerfAuditResults(result.audit);
+            }
+            showToast(`Performance audit completed for ${domain}`, 'success');
+        } else {
+            showToast('Performance audit failed: ' + (result.error || 'Unknown error'), 'error');
+            if (resultsDiv) {
+                resultsDiv.innerHTML = `
+                    <div class="perf-audit-error">
+                        <p>${escapeHtml(result.error || 'Unknown error')}</p>
+                        ${result.output ? `<pre>${escapeHtml(result.output)}</pre>` : ''}
+                    </div>
+                `;
             }
         }
     }

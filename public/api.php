@@ -260,6 +260,14 @@ switch ($action) {
         json_response($result);
         break;
 
+    case 'run_perf_audit':
+        set_time_limit(180); // 3 minute timeout for PageSpeed API
+        $domain = $input['domain'] ?? '';
+        $strategy = $input['strategy'] ?? 'mobile';
+        $result = cmd_run_perf_audit($domain, $strategy);
+        json_response($result);
+        break;
+
     default:
         json_response(['success' => false, 'error' => 'Unknown action'], 400);
 }
