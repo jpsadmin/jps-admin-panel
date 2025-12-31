@@ -354,18 +354,37 @@ a:hover {
 }
 
 /* ============================================
-   Dashboard Grid
+   Dashboard Grid - 12 Column Layout
    ============================================ */
 .dashboard-grid {
     display: grid;
-    grid-template-columns: 2fr 3fr;
+    grid-template-columns: repeat(12, 1fr);
     gap: var(--spacing-lg);
     max-width: 1600px;
     margin: 0 auto;
 }
 
+/* Row 1: Server Health (5 cols / ~40%) + Quick Actions (7 cols / ~60%) */
+.server-health-panel {
+    grid-column: span 5;
+}
+
+.quick-actions-panel {
+    grid-column: span 7;
+}
+
+/* Row 2: Sites table (full width - 12 cols) */
 .full-width {
     grid-column: 1 / -1;
+}
+
+/* Row 3: Daily Monitor (3 cols / 25%) + Recent Activity (9 cols / 75%) */
+.monitor-panel {
+    grid-column: span 3;
+}
+
+.activity-panel {
+    grid-column: span 9;
 }
 
 /* ============================================
@@ -607,7 +626,7 @@ a:hover {
 }
 
 /* Responsive: Reduce columns on smaller screens */
-@media (max-width: 900px) {
+@media (max-width: 768px) {
     .actions-grid {
         grid-template-columns: repeat(2, 1fr);
     }
@@ -1213,6 +1232,14 @@ a:hover {
 @media (max-width: 1024px) {
     .dashboard-grid {
         grid-template-columns: 1fr;
+    }
+
+    /* All panels go full width on mobile */
+    .server-health-panel,
+    .quick-actions-panel,
+    .monitor-panel,
+    .activity-panel {
+        grid-column: 1 / -1;
     }
 
     .header-left {
