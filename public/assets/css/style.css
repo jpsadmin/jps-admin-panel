@@ -559,7 +559,7 @@ a:hover {
 
 .actions-grid {
     display: grid;
-    grid-template-columns: repeat(3, 1fr);
+    grid-template-columns: repeat(2, 1fr);
     gap: var(--spacing-sm);
 }
 
@@ -606,13 +606,7 @@ a:hover {
     color: var(--warning);
 }
 
-/* Responsive: Stack to fewer columns on smaller screens */
-@media (max-width: 768px) {
-    .actions-grid {
-        grid-template-columns: repeat(2, 1fr);
-    }
-}
-
+/* Responsive: Stack to single column on small screens */
 @media (max-width: 480px) {
     .actions-grid {
         grid-template-columns: 1fr;
