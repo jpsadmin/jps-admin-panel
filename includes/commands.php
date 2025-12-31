@@ -245,7 +245,8 @@ function cmd_delete_site(string $domain, string $confirmation): array
     }
 
     $config = get_config();
-    $cmd = escapeshellcmd($config['commands']['jps-site-delete']) . ' ' . escapeshellarg($domain) . ' --confirm';
+    // Use --force to skip all interactive confirmations (API/automated use)
+    $cmd = escapeshellcmd($config['commands']['jps-site-delete']) . ' ' . escapeshellarg($domain) . ' --force';
 
     log_action('delete_site', $domain);
 
