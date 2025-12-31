@@ -358,7 +358,7 @@ a:hover {
    ============================================ */
 .dashboard-grid {
     display: grid;
-    grid-template-columns: repeat(2, 1fr);
+    grid-template-columns: 2fr 3fr;
     gap: var(--spacing-lg);
     max-width: 1600px;
     margin: 0 auto;
@@ -559,7 +559,7 @@ a:hover {
 
 .actions-grid {
     display: grid;
-    grid-template-columns: repeat(2, 1fr);
+    grid-template-columns: repeat(3, 1fr);
     gap: var(--spacing-sm);
 }
 
@@ -606,7 +606,13 @@ a:hover {
     color: var(--warning);
 }
 
-/* Responsive: Stack to single column on small screens */
+/* Responsive: Reduce columns on smaller screens */
+@media (max-width: 900px) {
+    .actions-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+
 @media (max-width: 480px) {
     .actions-grid {
         grid-template-columns: 1fr;
