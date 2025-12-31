@@ -354,6 +354,7 @@
                         <button type="button" class="btn-icon btn-validate" data-domain="${escapeHtml(site.domain)}" title="Validate Site">✓</button>
                         <button type="button" class="btn-icon btn-credentials" data-domain="${escapeHtml(site.domain)}" title="View Credentials">📋</button>
                         <button type="button" class="btn-icon btn-checkpoint" data-domain="${escapeHtml(site.domain)}" title="Create Checkpoint">💾</button>
+                        <button type="button" class="btn-icon btn-optimize" data-domain="${escapeHtml(site.domain)}" title="Optimize Site">⚡</button>
                         ${suspendBtn}
                         <button type="button" class="btn-icon btn-archive" data-domain="${escapeHtml(site.domain)}" title="Archive Site">📦</button>
                         <button type="button" class="btn-icon btn-logs" data-domain="${escapeHtml(site.domain)}" title="View Logs">📁</button>
@@ -383,6 +384,11 @@
         // Checkpoint
         document.querySelectorAll('.btn-checkpoint').forEach(btn => {
             btn.addEventListener('click', () => createCheckpoint(btn.dataset.domain));
+        });
+
+        // Optimize
+        document.querySelectorAll('.btn-optimize').forEach(btn => {
+            btn.addEventListener('click', () => showOptimizeModal(btn.dataset.domain));
         });
 
         // Suspend
@@ -2270,6 +2276,276 @@
             showToast('Failed to compare drift: ' + (result.error || 'Unknown error'), 'error');
         } else {
             showModal('Configuration Drift', `<pre>No drift detected</pre>`);
+        }
+    }
+
+    // ============================================
+    // Site Optimization
+    // ============================================
+
+    /**
+     * Optimization modal state
+     */
+    let optimizeState = {
+        domain: '',
+        preset: '',
+        currentSettings: null
+    };
+
+    /**
+     * Show optimization modal for a site
+     */
+    async function showOptimizeModal(domain) {
+        optimizeState = {
+            domain: domain,
+            preset: '',
+            currentSettings: null
+        };
+
+        // Load current optimization status
+        showLoading('Loading optimization status...');
+        const statusResult = await api('get_optimization_status', { domain: domain });
+        hideLoading();
+
+        if (statusResult && statusResult.success) {
+            optimizeState.currentSettings = statusResult;
+        }
+
+        renderOptimizeModal();
+    }
+
+    /**
+     * Render the optimization modal
+     */
+    function renderOptimizeModal() {
+        const domain = optimizeState.domain;
+        const current = optimizeState.currentSettings || {};
+        const phpSettings = current.php_settings || {};
+        const lscacheStatus = current.lscache_status || 'unknown';
+
+        // Build current settings display
+        let currentSettingsHtml = '';
+        if (Object.keys(phpSettings).length > 0) {
+            currentSettingsHtml = `
+                <div class="current-settings">
+                    <h4>Current PHP Settings</h4>
+                    <div class="settings-grid">
+                        ${Object.entries(phpSettings).map(([key, value]) => `
+                            <div class="setting-item">
+                                <span class="setting-key">${escapeHtml(key)}</span>
+                                <span class="setting-value">${escapeHtml(value)}</span>
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+            `;
+        } else {
+            currentSettingsHtml = `
+                <div class="current-settings">
+                    <p class="text-muted">No custom PHP settings configured.</p>
+                </div>
+            `;
+        }
+
+        const lscacheStatusClass = lscacheStatus === 'active' ? 'status-ok' :
+                                   lscacheStatus === 'inactive' ? 'status-warning' : 'status-unknown';
+        const lscacheStatusText = lscacheStatus === 'active' ? 'Active' :
+                                  lscacheStatus === 'inactive' ? 'Inactive' : 'Unknown';
+
+        const content = `
+            <div class="optimize-modal">
+                <div class="optimize-header">
+                    <span class="optimize-icon">⚡</span>
+                    <div class="optimize-info">
+                        <h3>Optimize Site</h3>
+                        <p class="domain-display">${escapeHtml(domain)}</p>
+                    </div>
+                </div>
+
+                <div class="optimize-status">
+                    <div class="status-item">
+                        <span class="status-label">LiteSpeed Cache:</span>
+                        <span class="status-badge ${lscacheStatusClass}">${lscacheStatusText}</span>
+                    </div>
+                </div>
+
+                ${currentSettingsHtml}
+
+                <div class="preset-selector">
+                    <h4>Select Optimization Preset</h4>
+                    <p class="preset-description">Choose a preset that matches your site type:</p>
+
+                    <div class="preset-options">
+                        <label class="preset-option">
+                            <input type="radio" name="preset" value="woo">
+                            <div class="preset-card">
+                                <div class="preset-icon">🛒</div>
+                                <div class="preset-details">
+                                    <strong>WooCommerce</strong>
+                                    <span>E-commerce sites (512MB RAM, 300s timeout)</span>
+                                </div>
+                            </div>
+                        </label>
+
+                        <label class="preset-option">
+                            <input type="radio" name="preset" value="blog">
+                            <div class="preset-card">
+                                <div class="preset-icon">📝</div>
+                                <div class="preset-details">
+                                    <strong>Blog</strong>
+                                    <span>Content-focused blogs (256MB RAM, 120s timeout)</span>
+                                </div>
+                            </div>
+                        </label>
+
+                        <label class="preset-option">
+                            <input type="radio" name="preset" value="docs">
+                            <div class="preset-card">
+                                <div class="preset-icon">📚</div>
+                                <div class="preset-details">
+                                    <strong>Documentation</strong>
+                                    <span>Wiki/docs sites (128MB RAM, 60s timeout)</span>
+                                </div>
+                            </div>
+                        </label>
+
+                        <label class="preset-option">
+                            <input type="radio" name="preset" value="brochure">
+                            <div class="preset-card">
+                                <div class="preset-icon">🏢</div>
+                                <div class="preset-details">
+                                    <strong>Brochure</strong>
+                                    <span>Simple portfolio sites (128MB RAM, 30s timeout)</span>
+                                </div>
+                            </div>
+                        </label>
+                    </div>
+                </div>
+
+                <div class="optimize-actions">
+                    <button type="button" class="btn btn-secondary btn-cancel">Cancel</button>
+                    <button type="button" class="btn btn-primary btn-apply-optimization" disabled>
+                        ⚡ Apply Optimization
+                    </button>
+                </div>
+            </div>
+        `;
+
+        showModal('Site Optimization', content);
+        attachOptimizeListeners();
+    }
+
+    /**
+     * Attach listeners for optimize modal
+     */
+    function attachOptimizeListeners() {
+        // Cancel button
+        document.querySelector('.btn-cancel')?.addEventListener('click', hideModal);
+
+        // Preset selection
+        document.querySelectorAll('input[name="preset"]').forEach(radio => {
+            radio.addEventListener('change', () => {
+                optimizeState.preset = radio.value;
+                const applyBtn = document.querySelector('.btn-apply-optimization');
+                if (applyBtn) {
+                    applyBtn.disabled = false;
+                }
+            });
+        });
+
+        // Apply optimization button
+        document.querySelector('.btn-apply-optimization')?.addEventListener('click', async () => {
+            if (!optimizeState.preset) {
+                showToast('Please select a preset', 'warning');
+                return;
+            }
+
+            await applyOptimization();
+        });
+    }
+
+    /**
+     * Apply optimization to site
+     */
+    async function applyOptimization() {
+        const domain = optimizeState.domain;
+        const preset = optimizeState.preset;
+
+        hideModal();
+        showLoading(`Applying ${preset} optimization to ${domain}...`);
+
+        const result = await api('optimize_site', {
+            domain: domain,
+            preset: preset,
+            audit: true
+        });
+
+        hideLoading();
+
+        if (!result) {
+            showToast('Failed to apply optimization: Network error', 'error');
+            return;
+        }
+
+        if (result.success) {
+            showToast(`Optimization applied successfully to ${domain}`, 'success');
+
+            // Show result modal
+            let resultContent = `
+                <div class="optimization-result">
+                    <div class="success-banner">
+                        <span class="success-icon">✓</span>
+                        <strong>Optimization Applied Successfully</strong>
+                    </div>
+
+                    <div class="result-info">
+                        <p><strong>Domain:</strong> ${escapeHtml(domain)}</p>
+                        <p><strong>Preset:</strong> ${escapeHtml(preset)}</p>
+                    </div>
+            `;
+
+            if (result.optimization) {
+                const opt = result.optimization;
+                if (opt.php) {
+                    resultContent += `
+                        <div class="result-section">
+                            <h4>PHP Settings Applied</h4>
+                            <div class="settings-grid">
+                                ${Object.entries(opt.php).map(([key, value]) => `
+                                    <div class="setting-item">
+                                        <span class="setting-key">${escapeHtml(key)}</span>
+                                        <span class="setting-value">${escapeHtml(value)}</span>
+                                    </div>
+                                `).join('')}
+                            </div>
+                        </div>
+                    `;
+                }
+
+                if (opt.lscache) {
+                    resultContent += `
+                        <div class="result-section">
+                            <h4>LiteSpeed Cache Status</h4>
+                            <p>${escapeHtml(opt.lscache.status || 'configured')}</p>
+                        </div>
+                    `;
+                }
+            }
+
+            resultContent += `
+                    <div class="result-note">
+                        <p>OpenLiteSpeed has been reloaded. Changes are now active.</p>
+                    </div>
+                </div>
+            `;
+
+            showModal('Optimization Result', resultContent);
+        } else {
+            showToast('Failed to apply optimization: ' + (result.error || 'Unknown error'), 'error');
+
+            if (result.output) {
+                showModal('Optimization Error', `<pre>${ansiToHtml(result.output)}</pre>`);
+            }
         }
     }
 

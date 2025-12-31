@@ -234,6 +234,32 @@ switch ($action) {
         json_response($result);
         break;
 
+    case 'list_optimization_presets':
+        $result = cmd_list_optimization_presets();
+        json_response($result);
+        break;
+
+    case 'get_optimization_status':
+        $domain = $input['domain'] ?? '';
+        $result = cmd_get_optimization_status($domain);
+        json_response($result);
+        break;
+
+    case 'optimize_site':
+        set_time_limit(120); // 2 minute timeout
+        $domain = $input['domain'] ?? '';
+        $preset = $input['preset'] ?? '';
+        $audit = $input['audit'] ?? false;
+        $result = cmd_optimize_site($domain, $preset, $audit);
+        json_response($result);
+        break;
+
+    case 'audit_optimization':
+        $domain = $input['domain'] ?? '';
+        $result = cmd_audit_optimization($domain);
+        json_response($result);
+        break;
+
     default:
         json_response(['success' => false, 'error' => 'Unknown action'], 400);
 }

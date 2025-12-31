@@ -891,3 +891,150 @@ function cmd_deploy_site_status(string $job_id): array
         'raw' => $log_content,
     ];
 }
+
+/**
+ * List available optimization presets
+ */
+function cmd_list_optimization_presets(): array
+{
+    $config = get_config();
+    $cmd = escapeshellcmd($config['commands']['jps-optimize-site']) . ' --list-presets';
+
+    $result = execute_command($cmd);
+
+    if ($result['success']) {
+        // Parse preset list from output
+        $lines = explode("\n", trim($result['output']));
+        $presets = [];
+
+        foreach ($lines as $line) {
+            $line = trim($line);
+            // Skip header lines and empty lines
+            if (empty($line) || strpos($line, '===') !== false) {
+                continue;
+            }
+
+            // Parse "name  description" format
+            if (preg_match('/^(\w+)\s+(.+)$/', $line, $matches)) {
+                $presets[] = [
+                    'name' => $matches[1],
+                    'description' => $matches[2],
+                ];
+            }
+        }
+
+        $result['presets'] = $presets;
+    }
+
+    return $result;
+}
+
+/**
+ * Get optimization status for a site
+ */
+function cmd_get_optimization_status(string $domain): array
+{
+    $domain = validate_domain($domain);
+    if (!$domain) {
+        return ['success' => false, 'error' => 'Invalid domain'];
+    }
+
+    $config = get_config();
+    $vhconf_path = '/usr/local/lsws/conf/vhosts/' . $domain . '/vhconf.conf';
+
+    // Read current PHP settings from vhconf.conf
+    $php_settings = [];
+    $cmd = '/usr/bin/cat ' . escapeshellarg($vhconf_path);
+    $result = execute_command($cmd);
+
+    if ($result['success']) {
+        // Parse phpIniOverride section
+        if (preg_match('/phpIniOverride\s*\{([^}]+)\}/s', $result['output'], $matches)) {
+            $override_block = $matches[1];
+            preg_match_all('/php_value\s+(\S+)\s+(\S+)/', $override_block, $value_matches, PREG_SET_ORDER);
+            foreach ($value_matches as $match) {
+                $php_settings[$match[1]] = $match[2];
+            }
+        }
+    }
+
+    // Check LiteSpeed Cache status via WP-CLI
+    $site_path = $config['websites_root'] . '/' . $domain . '/html';
+    $lscache_status = 'unknown';
+
+    if (file_exists($site_path . '/wp-config.php')) {
+        $wp_cmd = '/usr/local/bin/wp --path=' . escapeshellarg($site_path) . ' --allow-root plugin is-active litespeed-cache 2>/dev/null && echo active || echo inactive';
+        $wp_result = execute_command($wp_cmd);
+        $lscache_status = trim($wp_result['output']);
+    }
+
+    return [
+        'success' => true,
+        'domain' => $domain,
+        'php_settings' => $php_settings,
+        'lscache_status' => $lscache_status,
+    ];
+}
+
+/**
+ * Apply optimization preset to a site
+ */
+function cmd_optimize_site(string $domain, string $preset, bool $audit = false): array
+{
+    $domain = validate_domain($domain);
+    if (!$domain) {
+        return ['success' => false, 'error' => 'Invalid domain'];
+    }
+
+    // Validate preset name
+    $valid_presets = ['woo', 'blog', 'docs', 'brochure'];
+    if (!in_array($preset, $valid_presets, true)) {
+        return ['success' => false, 'error' => 'Invalid preset. Valid options: ' . implode(', ', $valid_presets)];
+    }
+
+    $config = get_config();
+    $cmd = escapeshellcmd($config['commands']['jps-optimize-site']);
+    $cmd .= ' ' . escapeshellarg($domain);
+    $cmd .= ' --preset=' . escapeshellarg($preset);
+    $cmd .= ' --json';
+
+    if ($audit) {
+        $cmd .= ' --audit';
+    }
+
+    log_action('optimize_site', "{$domain} with preset {$preset}");
+
+    $result = execute_command($cmd);
+
+    // Parse JSON output
+    if ($result['success'] && !empty($result['output'])) {
+        $json = json_decode($result['output'], true);
+        if ($json !== null) {
+            $result['optimization'] = $json;
+        }
+    }
+
+    return $result;
+}
+
+/**
+ * Get optimization audit for a site
+ */
+function cmd_audit_optimization(string $domain): array
+{
+    $domain = validate_domain($domain);
+    if (!$domain) {
+        return ['success' => false, 'error' => 'Invalid domain'];
+    }
+
+    $config = get_config();
+
+    // We'll run a dry-run with audit to see current status
+    $cmd = escapeshellcmd($config['commands']['jps-optimize-site']);
+    $cmd .= ' ' . escapeshellarg($domain);
+    $cmd .= ' --preset=blog --audit --dry-run';
+
+    $result = execute_command($cmd);
+
+    return $result;
+}
