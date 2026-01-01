@@ -96,15 +96,44 @@ function cmd_get_full_audit(): array
 function cmd_get_sites(): array
 {
     $config = get_config();
-    $cmd = escapeshellcmd($config['commands']['jps-status']);
+    // Use --json for structured output
+    $cmd = escapeshellcmd($config['commands']['jps-status']) . ' --json';
 
     $result = execute_command($cmd);
 
-    if ($result['success']) {
-        $result['sites'] = parse_status_output($result['output']);
+    // jps-status exit codes:
+    // 0 = all sites healthy
+    // 1 = some sites have issues (still valid output)
+    // 2 = error during execution
+    // So exit codes 0 and 1 both contain valid site data
+    if (!empty($result['output'])) {
+        $json = json_decode($result['output'], true);
+        if ($json !== null && isset($json['sites'])) {
+            return [
+                'success' => true,
+                'sites' => $json['sites'],
+                'summary' => $json['summary'] ?? null,
+            ];
+        }
     }
 
-    return $result;
+    // Fallback: try parsing text output if JSON fails
+    if (!empty($result['output'])) {
+        $sites = parse_status_output($result['output']);
+        if (!empty($sites)) {
+            return [
+                'success' => true,
+                'sites' => $sites,
+            ];
+        }
+    }
+
+    // If we get here, there was an actual error
+    return [
+        'success' => false,
+        'error' => $result['error'] ?? 'Failed to get sites list',
+        'sites' => [],
+    ];
 }
 
 /**
