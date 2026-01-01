@@ -18,6 +18,7 @@
 User_Alias JPS_WEB = nobody
 
 # Command Alias - JPS Server Tools
+# Note: Commands with * allow any arguments, commands without only allow exact match
 Cmnd_Alias JPS_TOOLS = \
     /usr/local/bin/jps-audit, \
     /usr/local/bin/jps-audit --brief, \
@@ -25,18 +26,19 @@ Cmnd_Alias JPS_TOOLS = \
     /usr/local/bin/jps-audit --diff, \
     /usr/local/bin/jps-status, \
     /usr/local/bin/jps-status --json, \
-    /usr/local/bin/jps-checkpoint, \
-    /usr/local/bin/jps-site-suspend, \
-    /usr/local/bin/jps-site-archive, \
-    /usr/local/bin/jps-site-delete, \
-    /usr/local/bin/jps-backup-verify, \
-    /usr/local/bin/jps-deploy-site, \
-    /usr/local/bin/jps-dns-check, \
-    /usr/local/bin/jps-reinstall-wp, \
-    /usr/local/bin/jps-optimize-site, \
-    /usr/local/bin/jps-perf-audit, \
-    /usr/local/bin/jps-validate-site, \
-    /usr/local/bin/jps-daily-monitor
+    /usr/local/bin/jps-checkpoint *, \
+    /usr/local/bin/jps-site-suspend *, \
+    /usr/local/bin/jps-site-archive *, \
+    /usr/local/bin/jps-site-delete *, \
+    /usr/local/bin/jps-backup-verify *, \
+    /usr/local/bin/jps-deploy-site *, \
+    /usr/local/bin/jps-dns-check *, \
+    /usr/local/bin/jps-reinstall-wp *, \
+    /usr/local/bin/jps-optimize-site *, \
+    /usr/local/bin/jps-perf-audit *, \
+    /usr/local/bin/jps-validate-site *, \
+    /usr/local/bin/jps-daily-monitor, \
+    /usr/local/bin/jps-daily-monitor --json
 
 # Command Alias - OpenLiteSpeed Control
 Cmnd_Alias OLS_CTRL = \
