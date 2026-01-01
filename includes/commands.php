@@ -729,26 +729,25 @@ function cmd_get_monitor_report(): array
 {
     $report_dir = '/opt/jps-server-tools/logs/daily-monitor';
 
-    if (!is_dir($report_dir)) {
-        return ['success' => false, 'error' => 'Report directory not found'];
-    }
+    // Use sudo to list files since directory may be root-owned
+    $list_cmd = '/usr/bin/ls -1t ' . escapeshellarg($report_dir) . '/*.json 2>/dev/null | head -1';
+    $list_result = execute_command($list_cmd);
 
-    // Find the most recent report
-    $reports = glob($report_dir . '/*.json');
-    if (empty($reports)) {
+    if (!$list_result['success'] || empty(trim($list_result['output']))) {
         return ['success' => false, 'error' => 'No reports found'];
     }
 
-    // Sort by filename (date) descending
-    rsort($reports);
-    $latest_report = $reports[0];
+    $latest_report = trim($list_result['output']);
 
-    $content = file_get_contents($latest_report);
-    if ($content === false) {
+    // Use sudo to read the report file (may be root-owned)
+    $read_cmd = '/usr/bin/cat ' . escapeshellarg($latest_report);
+    $read_result = execute_command($read_cmd);
+
+    if (!$read_result['success'] || empty($read_result['output'])) {
         return ['success' => false, 'error' => 'Failed to read report'];
     }
 
-    $data = json_decode($content, true);
+    $data = json_decode($read_result['output'], true);
     if ($data === null) {
         return ['success' => false, 'error' => 'Invalid report format'];
     }
@@ -767,21 +766,23 @@ function cmd_list_monitor_reports(): array
 {
     $report_dir = '/opt/jps-server-tools/logs/daily-monitor';
 
-    if (!is_dir($report_dir)) {
+    // Use sudo to list files since directory may be root-owned
+    $list_cmd = '/usr/bin/ls -1t ' . escapeshellarg($report_dir) . '/*.json 2>/dev/null | head -30';
+    $list_result = execute_command($list_cmd);
+
+    if (!$list_result['success'] || empty(trim($list_result['output']))) {
         return ['success' => true, 'reports' => []];
     }
 
-    $reports = glob($report_dir . '/*.json');
-    rsort($reports);
-
+    $files = array_filter(explode("\n", trim($list_result['output'])));
     $report_list = [];
-    foreach (array_slice($reports, 0, 30) as $report) {
-        $filename = basename($report);
+
+    foreach ($files as $file) {
+        $filename = basename($file);
         $date = str_replace('.json', '', $filename);
         $report_list[] = [
             'filename' => $filename,
             'date' => $date,
-            'size' => filesize($report),
         ];
     }
 

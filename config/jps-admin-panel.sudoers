@@ -50,13 +50,15 @@ Cmnd_Alias GIT_OPS = \
     /usr/bin/git -C /var/www/jps-admin-panel -c safe.directory=/var/www/jps-admin-panel pull
 
 # Command Alias - File Operations
-# Used for reading credentials, logs, and config files
+# Used for reading credentials, logs, config files, and monitor reports
 Cmnd_Alias FILE_OPS = \
     /usr/bin/test -f *, \
     /usr/bin/cat /usr/local/websites/*/CREDENTIALS.txt, \
     /usr/bin/cat /usr/local/websites/*/.credentials, \
     /usr/bin/cat /usr/local/websites/*/credentials.txt, \
     /usr/bin/cat /usr/local/lsws/conf/vhosts/*/vhconf.conf, \
+    /usr/bin/cat /opt/jps-server-tools/logs/daily-monitor/*.json, \
+    /usr/bin/ls -1t /opt/jps-server-tools/logs/daily-monitor/*.json, \
     /usr/bin/tail -n * /usr/local/websites/*/logs/error.log, \
     /usr/bin/tail -n * /usr/local/websites/*/logs/php_error.log, \
     /usr/bin/tail -n * /var/log/lsws/*.error.log, \
