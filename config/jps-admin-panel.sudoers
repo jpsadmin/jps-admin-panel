@@ -1,0 +1,85 @@
+# JPS Admin Panel - Sudoers Configuration
+# File: /etc/sudoers.d/jps-admin-panel
+#
+# This file grants the web server user (nobody) permission to run
+# specific JPS Server Tools commands without a password.
+#
+# Installation:
+#   sudo cp jps-admin-panel.sudoers /etc/sudoers.d/jps-admin-panel
+#   sudo chmod 440 /etc/sudoers.d/jps-admin-panel
+#   sudo visudo -c  # Validate syntax
+#
+# SECURITY NOTE: This grants the web server privileged access to these commands.
+# Ensure the admin panel is properly secured with authentication and IP restrictions.
+
+# User Alias for web server user
+# On Ubuntu/Debian with OpenLiteSpeed, the web server runs as 'nobody'
+# Change to 'www-data' if using Apache/Nginx with default config
+User_Alias JPS_WEB = nobody
+
+# Command Alias - JPS Server Tools
+Cmnd_Alias JPS_TOOLS = \
+    /usr/local/bin/jps-audit, \
+    /usr/local/bin/jps-audit --brief, \
+    /usr/local/bin/jps-audit --save, \
+    /usr/local/bin/jps-audit --diff, \
+    /usr/local/bin/jps-status, \
+    /usr/local/bin/jps-status --json, \
+    /usr/local/bin/jps-checkpoint, \
+    /usr/local/bin/jps-site-suspend, \
+    /usr/local/bin/jps-site-archive, \
+    /usr/local/bin/jps-site-delete, \
+    /usr/local/bin/jps-backup-verify, \
+    /usr/local/bin/jps-deploy-site, \
+    /usr/local/bin/jps-dns-check, \
+    /usr/local/bin/jps-reinstall-wp, \
+    /usr/local/bin/jps-optimize-site, \
+    /usr/local/bin/jps-perf-audit, \
+    /usr/local/bin/jps-validate-site, \
+    /usr/local/bin/jps-daily-monitor
+
+# Command Alias - OpenLiteSpeed Control
+Cmnd_Alias OLS_CTRL = \
+    /usr/local/lsws/bin/lswsctrl restart, \
+    /usr/local/lsws/bin/lswsctrl status
+
+# Command Alias - Git Operations (for pulling updates)
+# Uses safe.directory bypass to handle root-owned repos
+Cmnd_Alias GIT_OPS = \
+    /usr/bin/git -C /opt/jps-server-tools -c safe.directory=/opt/jps-server-tools pull, \
+    /usr/bin/git -C /var/www/jps-admin-panel -c safe.directory=/var/www/jps-admin-panel pull
+
+# Command Alias - File Operations
+# Used for reading credentials, logs, and config files
+Cmnd_Alias FILE_OPS = \
+    /usr/bin/test -f *, \
+    /usr/bin/cat /usr/local/websites/*/CREDENTIALS.txt, \
+    /usr/bin/cat /usr/local/websites/*/.credentials, \
+    /usr/bin/cat /usr/local/websites/*/credentials.txt, \
+    /usr/bin/cat /usr/local/lsws/conf/vhosts/*/vhconf.conf, \
+    /usr/bin/tail -n * /usr/local/websites/*/logs/error.log, \
+    /usr/bin/tail -n * /usr/local/websites/*/logs/php_error.log, \
+    /usr/bin/tail -n * /var/log/lsws/*.error.log, \
+    /usr/bin/du -sh /usr/local/websites/*/html, \
+    /usr/bin/du -sh /usr/local/websites/*/html/wp-content/uploads
+
+# Command Alias - Permission Fixes
+Cmnd_Alias PERM_OPS = \
+    /usr/bin/chown -R nobody\:nogroup /usr/local/websites/*/html/
+
+# Command Alias - WP-CLI Operations
+# Used for plugin status checks and WordPress operations
+Cmnd_Alias WPCLI_OPS = \
+    /usr/local/bin/wp --path=/usr/local/websites/*/html --allow-root *
+
+# Grant permissions
+JPS_WEB ALL=(ALL) NOPASSWD: JPS_TOOLS
+JPS_WEB ALL=(ALL) NOPASSWD: OLS_CTRL
+JPS_WEB ALL=(ALL) NOPASSWD: GIT_OPS
+JPS_WEB ALL=(ALL) NOPASSWD: FILE_OPS
+JPS_WEB ALL=(ALL) NOPASSWD: PERM_OPS
+JPS_WEB ALL=(ALL) NOPASSWD: WPCLI_OPS
+
+# Prevent NOPASSWD from timing out
+Defaults:JPS_WEB !requiretty
+Defaults:JPS_WEB env_keep += "PATH"

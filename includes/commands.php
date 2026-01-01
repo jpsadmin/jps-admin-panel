@@ -1130,9 +1130,24 @@ function cmd_get_optimization_status(string $domain): array
     $lscache_status = 'unknown';
 
     if (file_exists($site_path . '/wp-config.php')) {
-        $wp_cmd = '/usr/local/bin/wp --path=' . escapeshellarg($site_path) . ' --allow-root plugin is-active litespeed-cache 2>/dev/null && echo active || echo inactive';
+        // Use wp plugin list to check active plugins
+        // The previous method had issues with command chaining and output capture
+        $wp_cmd = '/usr/local/bin/wp --path=' . escapeshellarg($site_path) . ' --allow-root plugin list --status=active --field=name 2>/dev/null';
         $wp_result = execute_command($wp_cmd);
-        $lscache_status = trim($wp_result['output']);
+
+        if ($wp_result['success'] && !empty($wp_result['output'])) {
+            // Check if litespeed-cache is in the list of active plugins
+            $active_plugins = array_map('trim', explode("\n", trim($wp_result['output'])));
+            $lscache_status = in_array('litespeed-cache', $active_plugins, true) ? 'active' : 'inactive';
+        } else {
+            // Fallback: check if plugin directory exists
+            $lscache_path = $site_path . '/wp-content/plugins/litespeed-cache';
+            if (is_dir($lscache_path)) {
+                $lscache_status = 'installed';
+            } else {
+                $lscache_status = 'not_installed';
+            }
+        }
     }
 
     return [
