@@ -46,11 +46,19 @@ function execute_command(string $command, bool $use_sudo = true): array
 
     $output_str = implode("\n", $output);
 
-    return [
+    $result = [
         'success' => $return_code === 0,
         'output' => $output_str,
         'return_code' => $return_code,
     ];
+
+    // Add error message if command failed
+    if ($return_code !== 0) {
+        // Try to extract meaningful error from output
+        $result['error'] = !empty($output_str) ? $output_str : "Command failed with exit code {$return_code}";
+    }
+
+    return $result;
 }
 
 /**
