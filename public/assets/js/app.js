@@ -2060,39 +2060,108 @@
     }
 
     /**
-     * Start the deployment process
+     * Start the deployment process (synchronous)
+     *
+     * Changed from polling to synchronous because background execution
+     * doesn't work reliably in PHP web context.
      */
     async function startDeployment() {
         // Move to progress step
         renderDeployWizardStep(3);
 
+        // Disable cancel button during deployment
+        const cancelBtn = document.getElementById('btn-cancel-deploy');
+        if (cancelBtn) {
+            cancelBtn.disabled = true;
+            cancelBtn.textContent = 'Deploying...';
+        }
+
+        // Show a pulsing indicator on all steps
+        const stepIds = ['validate', 'directories', 'database', 'wordpress', 'vhost', 'ssl', 'permissions', 'finalize', 'optimize'];
+        stepIds.forEach((id, idx) => {
+            const stepEl = document.getElementById(`progress-${id}`);
+            if (stepEl) {
+                stepEl.className = 'progress-step pending';
+            }
+        });
+
         try {
-            // Start deployment job
+            // Run deployment synchronously - this takes 2-4 minutes
             const result = await api('deploy_site_start', {
                 domain: deployWizard.domain,
                 email: deployWizard.email,
                 username: deployWizard.username
             });
 
-            if (!result || !result.success) {
-                showToast('Failed to start deployment: ' + (result?.error || 'Unknown error'), 'error');
-                return;
+            // Update progress UI with final state
+            if (result && result.progress) {
+                updateDeploymentProgress(result);
             }
 
-            deployWizard.jobId = result.job_id;
+            // Update details log
+            const logEl = document.getElementById('deploy-log');
+            if (logEl && result?.output) {
+                logEl.textContent = result.output;
+                logEl.scrollTop = logEl.scrollHeight;
+            }
 
-            // Start polling for progress
-            deployWizard.pollInterval = setInterval(pollDeploymentStatus, 2000);
-            pollDeploymentStatus(); // Initial poll
+            // Handle result
+            if (result && result.complete && result.success) {
+                // Mark all steps as complete
+                stepIds.forEach(id => {
+                    const stepEl = document.getElementById(`progress-${id}`);
+                    if (stepEl) {
+                        stepEl.className = 'progress-step complete';
+                        const icon = stepEl.querySelector('.progress-icon');
+                        if (icon) icon.innerHTML = '&#x2714;';
+                    }
+                });
+
+                deployWizard.credentials = result.credentials;
+                showToast('Site deployed successfully!', 'success');
+                setTimeout(() => {
+                    renderDeployWizardStep(4);
+                    loadSites(); // Refresh site list
+                }, 1000);
+            } else {
+                // Deployment failed
+                showToast('Deployment failed: ' + (result?.error || 'Check the details for more information'), 'error');
+
+                // Show error state on progress steps
+                stepIds.forEach(id => {
+                    const stepEl = document.getElementById(`progress-${id}`);
+                    if (stepEl && stepEl.classList.contains('pending')) {
+                        stepEl.className = 'progress-step';
+                    }
+                });
+
+                // Re-enable cancel button
+                if (cancelBtn) {
+                    cancelBtn.disabled = false;
+                    cancelBtn.textContent = 'Close';
+                }
+
+                // Show details section
+                const detailsEl = document.getElementById('deploy-details');
+                if (detailsEl) {
+                    detailsEl.classList.remove('hidden');
+                }
+            }
         } catch (err) {
-            showToast('Failed to start deployment: ' + err.message, 'error');
+            showToast('Deployment failed: ' + err.message, 'error');
+            if (cancelBtn) {
+                cancelBtn.disabled = false;
+                cancelBtn.textContent = 'Close';
+            }
         }
     }
 
     /**
-     * Poll deployment status
+     * Poll deployment status (kept for backwards compatibility, but no longer used)
      */
     async function pollDeploymentStatus() {
+        // This function is no longer used since we switched to synchronous deployment
+        // Kept for backwards compatibility in case of rollback
         if (!deployWizard.jobId) return;
 
         try {

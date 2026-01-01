@@ -171,6 +171,14 @@ function parse_status_output(string $output): array
 
 /**
  * Parse jps-audit --brief output into structured data
+ *
+ * Brief output format example:
+ *   JPS Server Audit Summary
+ *   ========================
+ *   Host: server.example.com (69.62.67.12)
+ *   Resources: CPU 5.2% | Memory 45%
+ *   Services: OLS running | MariaDB running
+ *   Websites: 5
  */
 function parse_audit_brief(string $output): array
 {
@@ -189,14 +197,24 @@ function parse_audit_brief(string $output): array
     $lines = explode("\n", strip_ansi($output));
 
     foreach ($lines as $line) {
-        // Parse CPU usage - handle formats like "CPU Usage: 0.0%" or "CPU: 5%"
-        if (preg_match('/CPU(?:\s+Usage)?[:\s]+(\d+(?:\.\d+)?)\s*%/i', $line, $m)) {
+        // Parse CPU usage - handle multiple formats:
+        // - Brief format: "Resources: CPU 5.2% | Memory 45%"
+        // - Standard format: "CPU Usage: 0.0%" or "CPU: 5%"
+        if (preg_match('/CPU\s+(\d+(?:\.\d+)?)\s*%/i', $line, $m)) {
+            $data['cpu']['usage'] = (float)$m[1];
+            $data['cpu']['status'] = get_status_level($data['cpu']['usage']);
+        } elseif (preg_match('/CPU(?:\s+Usage)?[:\s]+(\d+(?:\.\d+)?)\s*%/i', $line, $m)) {
             $data['cpu']['usage'] = (float)$m[1];
             $data['cpu']['status'] = get_status_level($data['cpu']['usage']);
         }
 
-        // Parse Memory usage
-        if (preg_match('/Memory[:\s]+(\d+(?:\.\d+)?)\s*%/i', $line, $m)) {
+        // Parse Memory usage - handle multiple formats:
+        // - Brief format: "Memory 45%"
+        // - Standard format: "Memory: 45%" or "Memory: 2.5G / 8G"
+        if (preg_match('/Memory\s+(\d+(?:\.\d+)?)\s*%/i', $line, $m)) {
+            $data['memory']['usage'] = (float)$m[1];
+            $data['memory']['status'] = get_status_level($data['memory']['usage']);
+        } elseif (preg_match('/Memory[:\s]+(\d+(?:\.\d+)?)\s*%/i', $line, $m)) {
             $data['memory']['usage'] = (float)$m[1];
             $data['memory']['status'] = get_status_level($data['memory']['usage']);
         }
@@ -206,7 +224,10 @@ function parse_audit_brief(string $output): array
         }
 
         // Parse Disk usage
-        if (preg_match('/Disk[:\s]+(\d+(?:\.\d+)?)\s*%/i', $line, $m)) {
+        if (preg_match('/Disk\s+(\d+(?:\.\d+)?)\s*%/i', $line, $m)) {
+            $data['disk']['usage'] = (float)$m[1];
+            $data['disk']['status'] = get_status_level($data['disk']['usage']);
+        } elseif (preg_match('/Disk[:\s]+(\d+(?:\.\d+)?)\s*%/i', $line, $m)) {
             $data['disk']['usage'] = (float)$m[1];
             $data['disk']['status'] = get_status_level($data['disk']['usage']);
         }

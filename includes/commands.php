@@ -367,16 +367,43 @@ function cmd_get_lifecycle_log(int $limit = 20): array
 }
 
 /**
- * Git pull for server tools
+ * Git pull for both server tools and admin panel
  */
 function cmd_git_pull(): array
 {
     $config = get_config();
-    $cmd = escapeshellcmd($config['commands']['git']) . ' -C ' . escapeshellarg($config['tools_path']) . ' pull';
+    $git = escapeshellcmd($config['commands']['git']);
 
-    log_action('git_pull', 'Server tools update initiated');
+    $combined_output = '';
+    $all_success = true;
 
-    return execute_command($cmd);
+    // Update server tools
+    $combined_output .= "=== Updating JPS Server Tools ===\n";
+    $cmd1 = $git . ' -C ' . escapeshellarg($config['tools_path']) . ' pull 2>&1';
+    $result1 = execute_command($cmd1);
+    $combined_output .= $result1['output'] . "\n\n";
+    if (!$result1['success']) {
+        $all_success = false;
+    }
+
+    // Update admin panel (this repo)
+    $combined_output .= "=== Updating Admin Panel ===\n";
+    $admin_panel_path = dirname(dirname(__DIR__)); // Go up from includes/ to repo root
+    $cmd2 = $git . ' -C ' . escapeshellarg($admin_panel_path) . ' pull 2>&1';
+    $result2 = execute_command($cmd2, false); // No sudo needed for admin panel
+    $combined_output .= $result2['output'] . "\n";
+    if (!$result2['success']) {
+        $all_success = false;
+    }
+
+    log_action('git_pull', 'Code update initiated (both repos)');
+
+    return [
+        'success' => $all_success,
+        'output' => $combined_output,
+        'server_tools' => $result1,
+        'admin_panel' => $result2,
+    ];
 }
 
 /**
@@ -453,7 +480,15 @@ function cmd_save_audit_snapshot(): array
 
     log_action('save_audit_snapshot', 'Audit snapshot saved');
 
-    return execute_command($cmd);
+    $result = execute_command($cmd);
+
+    // jps-audit --save may return non-zero exit code due to jq warnings
+    // but still produce valid output. Treat as success if we have output.
+    if (!empty($result['output'])) {
+        $result['success'] = true;
+    }
+
+    return $result;
 }
 
 /**
@@ -466,7 +501,15 @@ function cmd_compare_drift(): array
 
     log_action('compare_drift', 'Audit drift comparison');
 
-    return execute_command($cmd);
+    $result = execute_command($cmd);
+
+    // jps-audit --diff may return non-zero if drift is detected (which is informational)
+    // Treat as success if we have output.
+    if (!empty($result['output'])) {
+        $result['success'] = true;
+    }
+
+    return $result;
 }
 
 /**
@@ -777,7 +820,12 @@ function cmd_check_dns(string $domain): array
 }
 
 /**
- * Start site deployment (background job)
+ * Start site deployment (synchronous with progress)
+ *
+ * Changed from background execution to synchronous because:
+ * - nohup output redirection doesn't work reliably in PHP web context
+ * - Synchronous execution with set_time_limit is more reliable
+ * - Progress is parsed from --progress JSON output
  */
 function cmd_deploy_site_start(string $domain, string $email = '', string $username = ''): array
 {
@@ -796,11 +844,6 @@ function cmd_deploy_site_start(string $domain, string $email = '', string $usern
         return ['success' => false, 'error' => 'Invalid email format'];
     }
 
-    // Generate job ID
-    $job_id = 'deploy_' . bin2hex(random_bytes(8));
-    $log_file = "/tmp/{$job_id}.log";
-    $status_file = "/tmp/{$job_id}.status";
-
     // Build command
     $config = get_config();
     $cmd = escapeshellcmd($config['commands']['jps-deploy-site']);
@@ -818,31 +861,86 @@ function cmd_deploy_site_start(string $domain, string $email = '', string $usern
         }
     }
 
-    // Run in background
-    $background_cmd = "nohup sudo {$cmd} > " . escapeshellarg($log_file) . " 2>&1 & echo $!";
+    log_action('deploy_site_start', "Starting deployment for {$domain}");
 
-    exec($background_cmd, $output, $return_code);
+    // Execute synchronously - the API handler sets a 5 minute timeout
+    $result = execute_command($cmd);
 
-    $pid = !empty($output[0]) ? trim($output[0]) : '';
+    // Parse the progress output to extract credentials and status
+    $output = $result['output'] ?? '';
+    $lines = explode("\n", trim($output));
 
-    // Write initial status
-    $status = [
-        'job_id' => $job_id,
-        'domain' => $domain,
-        'pid' => $pid,
-        'started' => date('Y-m-d H:i:s'),
-        'status' => 'running',
-    ];
-    file_put_contents($status_file, json_encode($status));
+    $progress = [];
+    $credentials = null;
+    $deployment_complete = false;
+    $deployment_failed = false;
 
-    log_action('deploy_site_start', "Started deployment for {$domain} (job: {$job_id})");
+    foreach ($lines as $line) {
+        $line = trim($line);
+        if (empty($line)) continue;
+
+        $json = json_decode($line, true);
+        if ($json) {
+            if (isset($json['step'])) {
+                if ($json['step'] === 'credentials') {
+                    $credentials = $json;
+                } elseif ($json['step'] === 'result') {
+                    if ($json['status'] === 'success') {
+                        $deployment_complete = true;
+                    } else {
+                        $deployment_failed = true;
+                    }
+                } else {
+                    $progress[] = $json;
+                }
+            }
+        }
+    }
+
+    // If we didn't get JSON progress, try to parse credentials from plain text
+    if (!$credentials && $deployment_complete) {
+        $credentials = parse_deploy_credentials($output);
+    }
+
+    // Determine success based on deployment result
+    $success = $deployment_complete && !$deployment_failed;
 
     return [
-        'success' => true,
-        'job_id' => $job_id,
-        'pid' => $pid,
-        'message' => 'Deployment started',
+        'success' => $success,
+        'complete' => $deployment_complete,
+        'failed' => $deployment_failed,
+        'credentials' => $credentials,
+        'progress' => $progress,
+        'output' => $output,
+        'return_code' => $result['return_code'] ?? -1,
     ];
+}
+
+/**
+ * Parse deployment credentials from plain text output
+ */
+function parse_deploy_credentials(string $output): ?array
+{
+    $credentials = [];
+
+    // Parse WordPress credentials from jps-deploy-site output
+    if (preg_match('/WP Username[:\s]+(\S+)/i', $output, $m)) {
+        $credentials['wp_user'] = $m[1];
+    }
+    if (preg_match('/WP Password[:\s]+(\S+)/i', $output, $m)) {
+        $credentials['wp_pass'] = $m[1];
+    }
+    if (preg_match('/(?:Database|DB) Name[:\s]+(\S+)/i', $output, $m)) {
+        $credentials['db_name'] = $m[1];
+    }
+    if (preg_match('/(?:Database|DB) User[:\s]+(\S+)/i', $output, $m)) {
+        $credentials['db_user'] = $m[1];
+    }
+    if (preg_match('/(?:Database|DB) Password[:\s]+(\S+)/i', $output, $m)) {
+        $credentials['db_pass'] = $m[1];
+    }
+
+    return !empty($credentials) ? $credentials : null;
 }
 
 /**
