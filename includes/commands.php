@@ -368,43 +368,54 @@ function cmd_get_lifecycle_log(int $limit = 20): array
 
 /**
  * Git pull for both server tools and admin panel
+ *
+ * Uses git -c safe.directory to bypass ownership checks since PHP runs
+ * as nobody/www-data but repos are owned by root.
  */
 function cmd_git_pull(): array
 {
     $config = get_config();
-    $git = $config['commands']['git']; // Don't escapeshellcmd the path itself
 
     $combined_output = '';
     $all_success = true;
 
-    // Update server tools (requires sudo since owned by root)
-    $combined_output .= "=== Updating JPS Server Tools ===\n";
-    $tools_path = $config['tools_path'];
-    $cmd1 = escapeshellcmd($git) . ' -C ' . escapeshellarg($tools_path) . ' pull';
-    $result1 = execute_command($cmd1, true); // Use sudo
-    $combined_output .= $result1['output'] . "\n\n";
-    if (!$result1['success']) {
-        $all_success = false;
-    }
+    // Define repos to update
+    $repos = [
+        'JPS Server Tools' => $config['tools_path'],
+        'Admin Panel' => dirname(__DIR__), // Go up from includes/ to jps-admin-panel/
+    ];
 
-    // Update admin panel (this repo)
-    // The admin panel path is relative to this file: includes/commands.php -> jps-admin-panel/
-    $combined_output .= "=== Updating Admin Panel ===\n";
-    $admin_panel_path = dirname(__DIR__); // Go up from includes/ to jps-admin-panel/
-    $cmd2 = escapeshellcmd($git) . ' -C ' . escapeshellarg($admin_panel_path) . ' pull';
-    $result2 = execute_command($cmd2, true); // Use sudo for consistency
-    $combined_output .= $result2['output'] . "\n";
-    if (!$result2['success']) {
-        $all_success = false;
+    foreach ($repos as $name => $path) {
+        $combined_output .= "=== Updating {$name} ===\n";
+
+        // Use git -c safe.directory to bypass ownership check
+        // This is necessary because PHP runs as nobody but repos are owned by root
+        $cmd = sprintf(
+            'sudo git -C %s -c safe.directory=%s pull 2>&1',
+            escapeshellarg($path),
+            escapeshellarg($path)
+        );
+
+        $output = [];
+        $exit_code = 0;
+        exec($cmd, $output, $exit_code);
+
+        $output_text = implode("\n", $output);
+        $combined_output .= $output_text . "\n";
+
+        if ($exit_code !== 0) {
+            $all_success = false;
+            $combined_output .= "✗ {$name} update failed\n\n";
+        } else {
+            $combined_output .= "✓ {$name} updated\n\n";
+        }
     }
 
     log_action('git_pull', 'Code update initiated (both repos)');
 
     return [
         'success' => $all_success,
-        'output' => $combined_output,
-        'server_tools' => $result1,
-        'admin_panel' => $result2,
+        'output' => trim($combined_output),
     ];
 }
 
