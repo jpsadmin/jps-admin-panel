@@ -194,46 +194,70 @@ function parse_audit_brief(string $output): array
         'raw' => $output,
     ];
 
-    $lines = explode("\n", strip_ansi($output));
+    // Strip ANSI codes from entire output first
+    $clean_output = strip_ansi($output);
+    $lines = explode("\n", $clean_output);
 
     foreach ($lines as $line) {
         // Parse CPU usage - handle multiple formats:
         // - Brief format: "Resources: CPU 5.2% | Memory 45%"
         // - Standard format: "CPU Usage: 0.0%" or "CPU: 5%"
-        if (preg_match('/CPU\s+(\d+(?:\.\d+)?)\s*%/i', $line, $m)) {
+        // Match "CPU" followed by space and number (brief format)
+        if (preg_match('/CPU\s+(\d+(?:\.\d+)?)\s*%/', $line, $m)) {
             $data['cpu']['usage'] = (float)$m[1];
             $data['cpu']['status'] = get_status_level($data['cpu']['usage']);
-        } elseif (preg_match('/CPU(?:\s+Usage)?[:\s]+(\d+(?:\.\d+)?)\s*%/i', $line, $m)) {
+        }
+        // Match "CPU Usage:" or "CPU:" format (standard format)
+        elseif (preg_match('/CPU(?:\s+Usage)?:\s*(\d+(?:\.\d+)?)\s*%/', $line, $m)) {
             $data['cpu']['usage'] = (float)$m[1];
             $data['cpu']['status'] = get_status_level($data['cpu']['usage']);
         }
 
         // Parse Memory usage - handle multiple formats:
         // - Brief format: "Memory 45%"
-        // - Standard format: "Memory: 45%" or "Memory: 2.5G / 8G"
-        if (preg_match('/Memory\s+(\d+(?:\.\d+)?)\s*%/i', $line, $m)) {
-            $data['memory']['usage'] = (float)$m[1];
-            $data['memory']['status'] = get_status_level($data['memory']['usage']);
-        } elseif (preg_match('/Memory[:\s]+(\d+(?:\.\d+)?)\s*%/i', $line, $m)) {
+        // - Standard format with percentage: "Memory: 45%" or "(45%)"
+        // - Standard format with size: "Memory Used: 1.12 GB / 15.61 GB (7.2%)"
+        // Match "Memory" followed by space and number% (brief format)
+        if (preg_match('/Memory\s+(\d+(?:\.\d+)?)\s*%/', $line, $m)) {
             $data['memory']['usage'] = (float)$m[1];
             $data['memory']['status'] = get_status_level($data['memory']['usage']);
         }
-        if (preg_match('/Memory[:\s]+([0-9.]+\s*[GMK]?i?B?)\s*\/\s*([0-9.]+\s*[GMK]?i?B?)/i', $line, $m)) {
-            $data['memory']['used'] = $m[1];
-            $data['memory']['total'] = $m[2];
+        // Match percentage in parentheses (standard format with size)
+        elseif (preg_match('/Memory.*\((\d+(?:\.\d+)?)\s*%\)/', $line, $m)) {
+            $data['memory']['usage'] = (float)$m[1];
+            $data['memory']['status'] = get_status_level($data['memory']['usage']);
+        }
+        // Match "Memory:" with percentage
+        elseif (preg_match('/Memory:\s*(\d+(?:\.\d+)?)\s*%/', $line, $m)) {
+            $data['memory']['usage'] = (float)$m[1];
+            $data['memory']['status'] = get_status_level($data['memory']['usage']);
+        }
+        // Extract memory used/total if present
+        if (preg_match('/Memory[^:]*:\s*([0-9.]+\s*[GMK]?i?B?)\s*\/\s*([0-9.]+\s*[GMK]?i?B?)/', $line, $m)) {
+            $data['memory']['used'] = trim($m[1]);
+            $data['memory']['total'] = trim($m[2]);
         }
 
         // Parse Disk usage
-        if (preg_match('/Disk\s+(\d+(?:\.\d+)?)\s*%/i', $line, $m)) {
-            $data['disk']['usage'] = (float)$m[1];
-            $data['disk']['status'] = get_status_level($data['disk']['usage']);
-        } elseif (preg_match('/Disk[:\s]+(\d+(?:\.\d+)?)\s*%/i', $line, $m)) {
+        // Match "Disk" followed by space and number% (brief format - if added)
+        if (preg_match('/Disk\s+(\d+(?:\.\d+)?)\s*%/', $line, $m)) {
             $data['disk']['usage'] = (float)$m[1];
             $data['disk']['status'] = get_status_level($data['disk']['usage']);
         }
-        if (preg_match('/Disk[:\s]+([0-9.]+\s*[GMK]?i?B?)\s*\/\s*([0-9.]+\s*[GMK]?i?B?)/i', $line, $m)) {
-            $data['disk']['used'] = $m[1];
-            $data['disk']['total'] = $m[2];
+        // Match percentage in parentheses (standard format)
+        elseif (preg_match('/(?:Disk|\/):.*\((\d+(?:\.\d+)?)\s*%\)/', $line, $m)) {
+            $data['disk']['usage'] = (float)$m[1];
+            $data['disk']['status'] = get_status_level($data['disk']['usage']);
+        }
+        // Match "Disk:" with percentage
+        elseif (preg_match('/Disk:\s*(\d+(?:\.\d+)?)\s*%/', $line, $m)) {
+            $data['disk']['usage'] = (float)$m[1];
+            $data['disk']['status'] = get_status_level($data['disk']['usage']);
+        }
+        // Extract disk used/total if present
+        if (preg_match('/(?:Disk|\/)[^:]*:\s*([0-9.]+\s*[GMK]?i?B?)\s*\/\s*([0-9.]+\s*[GMK]?i?B?)/', $line, $m)) {
+            $data['disk']['used'] = trim($m[1]);
+            $data['disk']['total'] = trim($m[2]);
         }
 
         // Parse service statuses - check for positive indicators (running/active/ok/checkmarks)
@@ -262,7 +286,31 @@ function parse_audit_brief(string $output): array
         }
     }
 
-    // Direct service status check for fail2ban (since --brief doesn't include it)
+    // Disk is NOT in the brief output, so fetch it directly from df
+    if ($data['disk']['usage'] === 0) {
+        $df_output = shell_exec('df -h / 2>/dev/null | tail -1');
+        if ($df_output && preg_match('/(\d+)%/', $df_output, $m)) {
+            $data['disk']['usage'] = (float)$m[1];
+            $data['disk']['status'] = get_status_level($data['disk']['usage']);
+        }
+        // Also get used/total
+        if ($df_output && preg_match('/\s+([0-9.]+[GMK]?)\s+([0-9.]+[GMK]?)\s+[0-9.]+[GMK]?\s+\d+%/', $df_output, $m)) {
+            $data['disk']['total'] = $m[1];
+            $data['disk']['used'] = $m[2];
+        }
+    }
+
+    // Direct service status checks as fallbacks
+    $ols_status = trim(shell_exec('pgrep -x lshttpd >/dev/null 2>&1 && echo active || pgrep -f litespeed >/dev/null 2>&1 && echo active || echo inactive') ?? '');
+    if ($ols_status === 'active') {
+        $data['services']['ols'] = true;
+    }
+
+    $mariadb_status = trim(shell_exec('systemctl is-active mariadb 2>/dev/null || systemctl is-active mysql 2>/dev/null') ?? '');
+    if ($mariadb_status === 'active') {
+        $data['services']['mariadb'] = true;
+    }
+
     $fail2ban_status = trim(shell_exec('systemctl is-active fail2ban 2>/dev/null') ?? '');
     $data['services']['fail2ban'] = ($fail2ban_status === 'active');
 

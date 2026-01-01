@@ -1421,8 +1421,10 @@
 
         hideLoading();
 
-        if (!result) {
-            showToast('Failed to run daily monitor', 'error');
+        if (!result || !result.success) {
+            showToast('Failed to run daily monitor: ' + (result?.error || 'Unknown error'), 'error');
+            // Still try to refresh in case a report was generated despite error
+            loadMonitorStatus();
             return;
         }
 

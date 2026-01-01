@@ -372,25 +372,27 @@ function cmd_get_lifecycle_log(int $limit = 20): array
 function cmd_git_pull(): array
 {
     $config = get_config();
-    $git = escapeshellcmd($config['commands']['git']);
+    $git = $config['commands']['git']; // Don't escapeshellcmd the path itself
 
     $combined_output = '';
     $all_success = true;
 
-    // Update server tools
+    // Update server tools (requires sudo since owned by root)
     $combined_output .= "=== Updating JPS Server Tools ===\n";
-    $cmd1 = $git . ' -C ' . escapeshellarg($config['tools_path']) . ' pull 2>&1';
-    $result1 = execute_command($cmd1);
+    $tools_path = $config['tools_path'];
+    $cmd1 = escapeshellcmd($git) . ' -C ' . escapeshellarg($tools_path) . ' pull';
+    $result1 = execute_command($cmd1, true); // Use sudo
     $combined_output .= $result1['output'] . "\n\n";
     if (!$result1['success']) {
         $all_success = false;
     }
 
     // Update admin panel (this repo)
+    // The admin panel path is relative to this file: includes/commands.php -> jps-admin-panel/
     $combined_output .= "=== Updating Admin Panel ===\n";
-    $admin_panel_path = dirname(dirname(__DIR__)); // Go up from includes/ to repo root
-    $cmd2 = $git . ' -C ' . escapeshellarg($admin_panel_path) . ' pull 2>&1';
-    $result2 = execute_command($cmd2, false); // No sudo needed for admin panel
+    $admin_panel_path = dirname(__DIR__); // Go up from includes/ to jps-admin-panel/
+    $cmd2 = escapeshellcmd($git) . ' -C ' . escapeshellarg($admin_panel_path) . ' pull';
+    $result2 = execute_command($cmd2, true); // Use sudo for consistency
     $combined_output .= $result2['output'] . "\n";
     if (!$result2['success']) {
         $all_success = false;
@@ -784,7 +786,26 @@ function cmd_run_daily_monitor(): array
 
     log_action('run_daily_monitor', 'Manual daily monitor run');
 
-    return execute_command($cmd, true);
+    $result = execute_command($cmd, true);
+
+    // jps-daily-monitor may return non-zero exit codes for warnings/errors found
+    // but still produce a valid report. Check if report was generated.
+    $report_dir = '/opt/jps-server-tools/logs/daily-monitor';
+    $reports = glob($report_dir . '/*.json');
+
+    if (!empty($reports)) {
+        // Sort by filename (date) descending
+        rsort($reports);
+        $latest_report = $reports[0];
+
+        // Check if report was created within the last minute (i.e., just now)
+        if (filemtime($latest_report) > time() - 120) {
+            $result['success'] = true;
+            $result['report_file'] = basename($latest_report);
+        }
+    }
+
+    return $result;
 }
 
 /**
