@@ -3105,39 +3105,47 @@ a:hover {
     margin-bottom: var(--spacing-md);
 }
 
-/* Score Cards */
+/* Score Cards - 2x2 Grid Layout */
 .score-cards {
     display: grid;
-    grid-template-columns: repeat(4, 1fr);
+    grid-template-columns: repeat(2, 1fr);
     gap: var(--spacing-md);
     margin-bottom: var(--spacing-lg);
 }
 
 .score-card {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
     text-align: center;
-    padding: var(--spacing-md);
-    background: rgba(0, 0, 0, 0.2);
+    padding: var(--spacing-lg) var(--spacing-md);
+    background: rgba(0, 0, 0, 0.25);
     border-radius: var(--radius-md);
     border: 2px solid transparent;
+    min-height: 120px;
 }
 
 .score-card.score-good {
     border-color: var(--status-ok);
+    background: rgba(0, 200, 83, 0.08);
 }
 
 .score-card.score-moderate {
     border-color: var(--status-warning);
+    background: rgba(255, 193, 7, 0.08);
 }
 
 .score-card.score-poor {
     border-color: var(--status-error);
+    background: rgba(255, 82, 82, 0.08);
 }
 
 .score-value {
-    font-size: 2rem;
+    font-size: 2.5rem;
     font-weight: 700;
     line-height: 1;
-    margin-bottom: var(--spacing-xs);
+    margin-bottom: var(--spacing-sm);
 }
 
 .score-good .score-value {
@@ -3153,23 +3161,26 @@ a:hover {
 }
 
 .score-label {
-    font-size: 0.75rem;
-    color: var(--text-muted);
+    font-size: 0.8rem;
+    color: var(--text-secondary);
     text-transform: uppercase;
     letter-spacing: 0.5px;
+    font-weight: 500;
     margin-bottom: var(--spacing-sm);
 }
 
 .score-bar {
-    height: 4px;
-    background: rgba(255, 255, 255, 0.1);
-    border-radius: 2px;
+    width: 100%;
+    height: 6px;
+    background: rgba(255, 255, 255, 0.15);
+    border-radius: 3px;
     overflow: hidden;
+    margin-top: auto;
 }
 
 .score-bar-fill {
     height: 100%;
-    border-radius: 2px;
+    border-radius: 3px;
     transition: width 0.5s ease;
 }
 
@@ -3188,14 +3199,18 @@ a:hover {
 /* Core Web Vitals */
 .core-web-vitals {
     margin-bottom: var(--spacing-lg);
+    background: rgba(0, 0, 0, 0.2);
+    border-radius: var(--radius-md);
+    padding: var(--spacing-md);
 }
 
 .core-web-vitals h4 {
     margin: 0 0 var(--spacing-md) 0;
-    color: var(--text-muted);
-    font-size: 0.75rem;
+    color: var(--text-secondary);
+    font-size: 0.85rem;
     text-transform: uppercase;
     letter-spacing: 0.5px;
+    font-weight: 600;
 }
 
 .vitals-table {
@@ -3206,19 +3221,34 @@ a:hover {
 .vitals-table th,
 .vitals-table td {
     padding: var(--spacing-sm) var(--spacing-md);
-    text-align: left;
-    border-bottom: 1px solid var(--border-color);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
 }
 
 .vitals-table th {
     color: var(--text-muted);
-    font-size: 0.75rem;
+    font-size: 0.7rem;
     text-transform: uppercase;
     font-weight: 500;
+    text-align: left;
+}
+
+.vitals-table th:nth-child(1) {
+    width: 55%;
+}
+
+.vitals-table th:nth-child(2) {
+    width: 20%;
+    text-align: right;
+}
+
+.vitals-table th:nth-child(3) {
+    width: 25%;
+    text-align: right;
 }
 
 .vitals-table td {
     font-size: 0.875rem;
+    vertical-align: middle;
 }
 
 .vitals-table td:first-child {
@@ -3226,13 +3256,26 @@ a:hover {
 }
 
 .vitals-table td:first-child strong {
-    color: var(--text-primary);
+    color: var(--accent-primary);
+    font-weight: 600;
     margin-right: var(--spacing-xs);
+    display: inline-block;
+    min-width: 35px;
 }
 
 .vitals-table td:nth-child(2) {
     font-family: var(--font-mono);
     color: var(--text-primary);
+    text-align: right;
+    font-weight: 500;
+}
+
+.vitals-table td:nth-child(3) {
+    text-align: right;
+}
+
+.vitals-table tr:last-child td {
+    border-bottom: none;
 }
 
 .vital-good .vital-status {
@@ -3294,7 +3337,26 @@ a:hover {
     }
 
     .score-cards {
-        grid-template-columns: repeat(2, 1fr);
+        grid-template-columns: 1fr 1fr;
+        gap: var(--spacing-sm);
+    }
+
+    .score-card {
+        min-height: 100px;
+        padding: var(--spacing-md);
+    }
+
+    .score-value {
+        font-size: 2rem;
+    }
+
+    .score-label {
+        font-size: 0.7rem;
+    }
+
+    .vitals-table th,
+    .vitals-table td {
+        padding: var(--spacing-xs) var(--spacing-sm);
     }
 
     .vitals-table td:first-child {
