@@ -1059,15 +1059,19 @@ function cmd_run_perf_audit(string $domain, string $strategy = 'mobile'): array
 
     log_action('perf_audit', "{$domain} ({$strategy})");
 
-    $result = execute_command($cmd, 180); // 3 minute timeout for API call
+    $result = execute_command($cmd);
 
-    if ($result['success'] && !empty($result['output'])) {
+    // jps-perf-audit returns exit codes based on performance score:
+    // 0 = good (90+), 1 = needs improvement (50-89), 2 = poor/error (<50)
+    // Exit codes 0 and 1 are valid audit results, only 2 indicates an error
+    if (!empty($result['output'])) {
         $audit = json_decode($result['output'], true);
-        if ($audit !== null) {
+        if ($audit !== null && isset($audit['scores'])) {
             return ['success' => true, 'audit' => $audit];
         }
     }
 
+    // If we get here, there was an actual error
     return [
         'success' => false,
         'error' => $result['error'] ?? 'Performance audit failed',
