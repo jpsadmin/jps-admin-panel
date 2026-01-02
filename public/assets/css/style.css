@@ -1899,6 +1899,7 @@ a:hover {
    ============================================ */
 .monitor-status {
     min-height: 120px;
+    position: relative;
 }
 
 .monitor-loading {
@@ -2098,6 +2099,45 @@ a:hover {
     text-overflow: ellipsis;
     overflow: hidden;
     white-space: nowrap;
+}
+
+/* Monitor Auto-Update Indicator */
+.monitor-updating {
+    position: absolute;
+    top: var(--spacing-sm);
+    right: var(--spacing-sm);
+    z-index: 10;
+}
+
+.updating-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--spacing-xs);
+    padding: 4px 10px;
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-full);
+    font-size: 0.75rem;
+    color: var(--text-muted);
+}
+
+.pulse-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--accent-primary);
+    animation: pulse-dot 1.5s ease-in-out infinite;
+}
+
+@keyframes pulse-dot {
+    0%, 100% {
+        opacity: 1;
+        transform: scale(1);
+    }
+    50% {
+        opacity: 0.5;
+        transform: scale(0.8);
+    }
 }
 
 /* ============================================

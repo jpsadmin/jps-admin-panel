@@ -1408,7 +1408,7 @@
     }
 
     /**
-     * Run daily monitor now
+     * Run daily monitor now (with confirmation)
      */
     async function runDailyMonitor() {
         if (!confirm('Run a full daily monitor check now? This may take a few minutes.')) {
@@ -1430,6 +1430,37 @@
 
         showToast('Daily monitor completed', 'success');
         loadMonitorStatus();
+    }
+
+    /**
+     * Auto-refresh daily monitor on page load (runs silently in background)
+     */
+    async function autoRefreshMonitor() {
+        const container = document.getElementById('monitor-status');
+        if (!container) return;
+
+        // Show subtle updating indicator without blocking
+        const existingContent = container.innerHTML;
+        const updateIndicator = document.createElement('div');
+        updateIndicator.className = 'monitor-updating';
+        updateIndicator.innerHTML = '<span class="updating-badge"><span class="pulse-dot"></span> Updating...</span>';
+        container.insertBefore(updateIndicator, container.firstChild);
+
+        try {
+            const result = await api('run_daily_monitor');
+
+            // Remove updating indicator
+            updateIndicator.remove();
+
+            if (result && result.success) {
+                // Silently refresh with new data
+                loadMonitorStatus();
+            }
+            // If failed, just keep showing the cached report (fail silently)
+        } catch (e) {
+            // Remove indicator and fail silently
+            updateIndicator.remove();
+        }
     }
 
     // ============================================
@@ -2968,6 +2999,12 @@
 
         // Start auto refresh
         startAutoRefresh();
+
+        // Auto-refresh Daily Monitor in background after a short delay
+        // This ensures fresh data without blocking the initial page load
+        setTimeout(() => {
+            autoRefreshMonitor();
+        }, 2000);
 
         // Attach header button listeners
         document.getElementById('btn-refresh-status')?.addEventListener('click', loadServerStatus);
