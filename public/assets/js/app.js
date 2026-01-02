@@ -1544,8 +1544,8 @@
     let deployWizard = {
         currentStep: 1,
         domain: '',
-        email: 'admin@jpshosting.net',
-        username: '',
+        email: 'jayjay@jpshosting.com',
+        username: 'jpshost',
         dnsVerified: false,
         jobId: null,
         pollInterval: null,
@@ -1560,8 +1560,8 @@
         deployWizard = {
             currentStep: 1,
             domain: '',
-            email: 'admin@jpshosting.net',
-            username: '',
+            email: 'jayjay@jpshosting.com',
+            username: 'jpshost',
             dnsVerified: false,
             jobId: null,
             pollInterval: null,
@@ -1704,7 +1704,7 @@
      * Step 2: Configuration
      */
     function renderConfigStep() {
-        const suggestedUsername = 'jpsadmin_' + Math.random().toString(36).substring(2, 6);
+        const suggestedUsername = 'jpshost';
 
         return `
             <div class="wizard-step-content" id="config-step">

@@ -268,6 +268,27 @@ switch ($action) {
         json_response($result);
         break;
 
+    case 'regen_password':
+        $domain = $input['domain'] ?? '';
+        $username = $input['username'] ?? '';
+        $result = cmd_regen_password($domain, $username);
+        json_response($result);
+        break;
+
+    case 'show_credentials_info':
+        $domain = $input['domain'] ?? '';
+        $result = cmd_show_credentials($domain);
+        json_response($result);
+        break;
+
+    case 'install_stack':
+        set_time_limit(600); // 10 minute timeout for plugin/theme installation
+        $domain = $input['domain'] ?? '';
+        $include_ecomm = $input['include_ecomm'] ?? false;
+        $result = cmd_install_stack($domain, $include_ecomm);
+        json_response($result);
+        break;
+
     default:
         json_response(['success' => false, 'error' => 'Unknown action'], 400);
 }

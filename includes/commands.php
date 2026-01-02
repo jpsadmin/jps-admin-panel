@@ -1261,3 +1261,95 @@ function cmd_run_perf_audit(string $domain, string $strategy = 'mobile'): array
         'output' => $result['output'] ?? '',
     ];
 }
+
+/**
+ * Regenerate WordPress admin password and update CREDENTIALS.txt
+ */
+function cmd_regen_password(string $domain, string $username = ''): array
+{
+    $domain = validate_domain($domain);
+    if (!$domain) {
+        return ['success' => false, 'error' => 'Invalid domain'];
+    }
+
+    $cmd = '/usr/local/bin/jps-regen-password ' . escapeshellarg($domain) . ' --json';
+
+    if (!empty($username)) {
+        $username = preg_replace('/[^a-zA-Z0-9_-]/', '', $username);
+        $cmd .= ' --user ' . escapeshellarg($username);
+    }
+
+    $result = execute_command($cmd);
+
+    if ($result['success'] && !empty($result['output'])) {
+        $data = json_decode($result['output'], true);
+        if ($data !== null) {
+            return [
+                'success' => true,
+                'data' => $data,
+            ];
+        }
+    }
+
+    return [
+        'success' => false,
+        'error' => $result['error'] ?? 'Failed to regenerate password',
+        'output' => $result['output'] ?? '',
+    ];
+}
+
+/**
+ * Show current credentials without changing password
+ */
+function cmd_show_credentials(string $domain): array
+{
+    $domain = validate_domain($domain);
+    if (!$domain) {
+        return ['success' => false, 'error' => 'Invalid domain'];
+    }
+
+    $cmd = '/usr/local/bin/jps-regen-password ' . escapeshellarg($domain) . ' --show --json';
+
+    $result = execute_command($cmd);
+
+    if ($result['success'] && !empty($result['output'])) {
+        $data = json_decode($result['output'], true);
+        if ($data !== null) {
+            return [
+                'success' => true,
+                'data' => $data,
+            ];
+        }
+    }
+
+    return [
+        'success' => false,
+        'error' => $result['error'] ?? 'Failed to retrieve credentials info',
+        'output' => $result['output'] ?? '',
+    ];
+}
+
+/**
+ * Install plugin/theme stack on a site
+ */
+function cmd_install_stack(string $domain, bool $include_ecomm = false): array
+{
+    $domain = validate_domain($domain);
+    if (!$domain) {
+        return ['success' => false, 'error' => 'Invalid domain'];
+    }
+
+    $cmd = '/usr/local/bin/jps-install-stack ' . escapeshellarg($domain);
+
+    if ($include_ecomm) {
+        $cmd .= ' --ecomm';
+    }
+
+    $result = execute_command($cmd);
+
+    return [
+        'success' => $result['success'],
+        'output' => $result['output'] ?? '',
+        'error' => $result['error'] ?? null,
+    ];
+}
