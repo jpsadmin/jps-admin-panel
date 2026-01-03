@@ -305,6 +305,11 @@ switch ($action) {
         json_response($result);
         break;
 
+    case 'get_migration_config':
+        $result = cmd_get_migration_config();
+        json_response($result);
+        break;
+
     case 'list_migration_backups':
         $result = cmd_list_migration_backups();
         json_response($result);

@@ -1117,6 +1117,48 @@ a:hover {
     color: var(--danger);
 }
 
+/* ============================================
+   Migration Source Path Container
+   ============================================ */
+.source-path-container {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+}
+
+.source-path-container .form-input {
+    flex: 1;
+}
+
+.source-path-container .status-ok {
+    color: var(--success);
+    font-size: 0.85rem;
+    white-space: nowrap;
+}
+
+.source-path-container .status-warn {
+    color: var(--warning);
+    font-size: 0.85rem;
+    white-space: nowrap;
+}
+
+.form-input.readonly-visual {
+    background: rgba(0, 0, 0, 0.3);
+    opacity: 0.8;
+    cursor: not-allowed;
+}
+
+#toggle-advanced-source,
+#toggle-default-source {
+    color: var(--accent-primary);
+    text-decoration: none;
+}
+
+#toggle-advanced-source:hover,
+#toggle-default-source:hover {
+    text-decoration: underline;
+}
+
 .form-group {
     margin: var(--spacing-md) 0;
 }

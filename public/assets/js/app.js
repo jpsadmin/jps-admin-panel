@@ -2345,13 +2345,24 @@
         source: '',
         sourceType: 'auto',
         note: '',
-        stagingDomain: ''
+        stagingDomain: '',
+        // Config loaded from server
+        config: null,
+        useDefaultSource: true,
+        advancedMode: false
     };
 
     /**
      * Show migrate site modal
      */
-    function showMigrateSiteModal() {
+    async function showMigrateSiteModal() {
+        // Show loading while we fetch config
+        showLoading('Loading migration configuration...');
+
+        // Fetch migration config from server
+        const configResult = await api('get_migration_config');
+        hideLoading();
+
         // Reset wizard state
         migrateWizard = {
             currentStep: 1,
@@ -2359,8 +2370,16 @@
             source: '',
             sourceType: 'auto',
             note: '',
-            stagingDomain: ''
+            stagingDomain: '',
+            config: configResult?.config || null,
+            useDefaultSource: true,
+            advancedMode: false
         };
+
+        // Pre-fill default source if config available
+        if (migrateWizard.config?.incoming_dir) {
+            migrateWizard.source = migrateWizard.config.incoming_dir;
+        }
 
         renderMigrateWizardStep(1);
     }
@@ -2420,6 +2439,21 @@
      * Step 1: Migration configuration
      */
     function renderMigrateConfigStep() {
+        const config = migrateWizard.config;
+        const defaultPath = config?.incoming_dir || '/var/backups/jps/migrations/incoming';
+        const itemCount = config?.incoming_dir_count || 0;
+        const dirExists = config?.incoming_dir_exists || false;
+
+        // Status indicator for default path
+        let defaultPathStatus = '';
+        if (dirExists && itemCount > 0) {
+            defaultPathStatus = `<span class="status-ok">&#x2705; ${itemCount} item(s) ready</span>`;
+        } else if (dirExists) {
+            defaultPathStatus = `<span class="status-warn">&#x26A0;&#xFE0F; Directory empty</span>`;
+        } else {
+            defaultPathStatus = `<span class="status-warn">&#x26A0;&#xFE0F; Directory will be created</span>`;
+        }
+
         return `
             <div class="wizard-step-content" id="migrate-config-step">
                 <h3>Step 1: Migration Configuration</h3>
@@ -2433,16 +2467,37 @@
 
                 <div class="form-group">
                     <label for="migrate-source-input">Migration Source</label>
-                    <input type="text" id="migrate-source-input" class="form-input" placeholder="/path/to/backup.wpress or user@host:/path/to/site" value="${escapeHtml(migrateWizard.source)}" autocomplete="off">
-                    <small>Path to .wpress file, .tar.gz archive, or rsync source (user@host:/path)</small>
+                    <div class="source-path-container">
+                        <input type="text" id="migrate-source-input" class="form-input ${migrateWizard.advancedMode ? '' : 'readonly-visual'}" placeholder="${defaultPath}" value="${escapeHtml(migrateWizard.source)}" autocomplete="off" ${migrateWizard.advancedMode ? '' : 'readonly'}>
+                        ${!migrateWizard.advancedMode ? defaultPathStatus : ''}
+                    </div>
+                    <small>
+                        ${migrateWizard.advancedMode
+                            ? 'Path to .wpress file, .tar.gz archive, or rsync source (user@host:/path)'
+                            : `Using default migration directory. <a href="#" id="toggle-advanced-source">Enable Advanced Mode</a> to override.`
+                        }
+                    </small>
                 </div>
+
+                ${migrateWizard.advancedMode ? `
+                <div class="warning-banner" style="margin-bottom: 1rem;">
+                    <span class="warning-icon">&#x26A0;&#xFE0F;</span>
+                    <div>
+                        <strong>Advanced Mode:</strong> You are specifying a custom source path.
+                        Ensure the path is correct and accessible.
+                        <a href="#" id="toggle-default-source">Use default path</a>
+                    </div>
+                </div>
+                ` : ''}
 
                 <div class="form-group">
                     <label for="migrate-source-type">Source Type</label>
                     <select id="migrate-source-type" class="form-input">
                         <option value="auto" ${migrateWizard.sourceType === 'auto' ? 'selected' : ''}>Auto-detect</option>
+                        <option value="wpvivid" ${migrateWizard.sourceType === 'wpvivid' ? 'selected' : ''}>WPvivid Backup Folder</option>
                         <option value="wpress" ${migrateWizard.sourceType === 'wpress' ? 'selected' : ''}>.wpress (All-in-One WP Migration)</option>
                         <option value="tarball" ${migrateWizard.sourceType === 'tarball' ? 'selected' : ''}>.tar.gz Archive</option>
+                        <option value="zip" ${migrateWizard.sourceType === 'zip' ? 'selected' : ''}>.zip Archive</option>
                         <option value="rsync" ${migrateWizard.sourceType === 'rsync' ? 'selected' : ''}>Rsync (SSH)</option>
                     </select>
                     <small>Usually auto-detect works; override if needed</small>
@@ -2624,6 +2679,28 @@
 
         // Focus the domain input
         if (domainInput) domainInput.focus();
+
+        // Toggle advanced source mode
+        const toggleAdvanced = document.getElementById('toggle-advanced-source');
+        const toggleDefault = document.getElementById('toggle-default-source');
+
+        if (toggleAdvanced) {
+            toggleAdvanced.addEventListener('click', (e) => {
+                e.preventDefault();
+                migrateWizard.advancedMode = true;
+                migrateWizard.source = ''; // Clear to let user enter custom path
+                renderMigrateWizardStep(1);
+            });
+        }
+
+        if (toggleDefault) {
+            toggleDefault.addEventListener('click', (e) => {
+                e.preventDefault();
+                migrateWizard.advancedMode = false;
+                migrateWizard.source = migrateWizard.config?.incoming_dir || '/var/backups/jps/migrations/incoming';
+                renderMigrateWizardStep(1);
+            });
+        }
 
         // Update staging domain preview when domain changes
         if (domainInput) {

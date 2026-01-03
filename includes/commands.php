@@ -1496,6 +1496,64 @@ function cmd_get_migration_log(int $limit = 20): array
 }
 
 /**
+ * Get migration configuration (default paths, retention, etc.)
+ * Used by the admin panel to pre-fill migration source
+ */
+function cmd_get_migration_config(): array
+{
+    // Read configuration from jps-tools.conf
+    $config_file = '/opt/jps-server-tools/config/jps-tools.conf';
+
+    // Default values
+    $config = [
+        'incoming_dir' => '/var/backups/jps/migrations/incoming',
+        'metadata_dir' => '/var/backups/jps/migrations/metadata',
+        'retention_days' => 7,
+        'allow_default_source' => true,
+    ];
+
+    if (file_exists($config_file)) {
+        $contents = file_get_contents($config_file);
+
+        // Parse MIGRATION_INCOMING_DIR
+        if (preg_match('/^MIGRATION_INCOMING_DIR="([^"]+)"/m', $contents, $matches)) {
+            $config['incoming_dir'] = $matches[1];
+        }
+
+        // Parse MIGRATION_METADATA_DIR
+        if (preg_match('/^MIGRATION_METADATA_DIR="([^"]+)"/m', $contents, $matches)) {
+            $config['metadata_dir'] = $matches[1];
+        }
+
+        // Parse MIGRATION_RETENTION_DAYS
+        if (preg_match('/^MIGRATION_RETENTION_DAYS=(\d+)/m', $contents, $matches)) {
+            $config['retention_days'] = (int)$matches[1];
+        }
+
+        // Parse MIGRATION_ALLOW_DEFAULT_SOURCE
+        if (preg_match('/^MIGRATION_ALLOW_DEFAULT_SOURCE=(true|false)/m', $contents, $matches)) {
+            $config['allow_default_source'] = ($matches[1] === 'true');
+        }
+    }
+
+    // Check if incoming directory exists and has content
+    $config['incoming_dir_exists'] = is_dir($config['incoming_dir']);
+    $config['incoming_dir_count'] = 0;
+
+    if ($config['incoming_dir_exists']) {
+        $files = @scandir($config['incoming_dir']);
+        if ($files !== false) {
+            $config['incoming_dir_count'] = count(array_diff($files, ['.', '..']));
+        }
+    }
+
+    return [
+        'success' => true,
+        'config' => $config,
+    ];
+}
+
+/**
  * List migration backups
  */
 function cmd_list_migration_backups(): array
