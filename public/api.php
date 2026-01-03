@@ -305,6 +305,19 @@ switch ($action) {
         json_response($result);
         break;
 
+    case 'list_migration_backups':
+        $result = cmd_list_migration_backups();
+        json_response($result);
+        break;
+
+    case 'cleanup_migration_backups':
+        $delete_all = $input['delete_all'] ?? false;
+        $days = (int)($input['days'] ?? 7);
+        $domain = $input['domain'] ?? '';
+        $result = cmd_cleanup_migration_backups($delete_all, $days, $domain);
+        json_response($result);
+        break;
+
     default:
         json_response(['success' => false, 'error' => 'Unknown action'], 400);
 }

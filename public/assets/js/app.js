@@ -2810,6 +2810,131 @@
         }
     }
 
+    // ============================================
+    // Migration Backup Cleanup
+    // ============================================
+
+    /**
+     * Show migration cleanup modal
+     */
+    async function showMigrationCleanupModal() {
+        showLoading('Loading migration backups...');
+
+        const result = await api('list_migration_backups');
+
+        hideLoading();
+
+        if (!result || !result.success) {
+            showToast('Failed to list migration backups: ' + (result?.error || 'Network error'), 'error');
+            return;
+        }
+
+        const backups = result.backups || [];
+        const count = result.count || 0;
+
+        let backupList = '';
+        if (count === 0) {
+            backupList = '<p class="empty-state">No migration backups found.</p>';
+        } else {
+            backupList = '<div class="backup-list">';
+            for (const backup of backups) {
+                const statusClass = backup.status === 'success' ? 'status-ok' :
+                    backup.status === 'failed' ? 'status-error' : 'status-warning';
+                backupList += `
+                    <div class="backup-item">
+                        <div class="backup-name">${escapeHtml(backup.name)}</div>
+                        <div class="backup-details">
+                            <span class="backup-size">${escapeHtml(backup.size)}</span>
+                            <span class="backup-age">${backup.age_days} days old</span>
+                            <span class="backup-status ${statusClass}">${escapeHtml(backup.status)}</span>
+                            ${backup.domain ? `<span class="backup-domain">${escapeHtml(backup.domain)}</span>` : ''}
+                        </div>
+                    </div>
+                `;
+            }
+            backupList += '</div>';
+        }
+
+        const content = `
+            <div class="cleanup-modal">
+                <div class="cleanup-header">
+                    <h3>Migration Backups (${count})</h3>
+                    <p>Backups older than 7 days are automatically eligible for cleanup.</p>
+                </div>
+
+                ${backupList}
+
+                <div class="cleanup-options">
+                    <div class="form-group">
+                        <label for="cleanup-days">Keep backups newer than:</label>
+                        <select id="cleanup-days" class="form-input">
+                            <option value="7">7 days (default)</option>
+                            <option value="3">3 days</option>
+                            <option value="14">14 days</option>
+                            <option value="30">30 days</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>
+                            <input type="checkbox" id="cleanup-all">
+                            Delete ALL backups (including recent ones)
+                        </label>
+                    </div>
+                </div>
+
+                <div class="warning-banner" style="display: none;" id="cleanup-warning">
+                    <span class="warning-icon">&#x26A0;&#xFE0F;</span>
+                    <strong>Warning: This will delete ALL migration backups!</strong>
+                </div>
+
+                <div class="dialog-actions">
+                    <button type="button" class="btn btn-secondary btn-cancel">Cancel</button>
+                    <button type="button" class="btn btn-danger" id="btn-confirm-cleanup" ${count === 0 ? 'disabled' : ''}>
+                        Delete Backups
+                    </button>
+                </div>
+            </div>
+        `;
+
+        showModal('Clear Migration Backups', content);
+
+        // Attach listeners
+        document.querySelector('.btn-cancel')?.addEventListener('click', hideModal);
+
+        const deleteAllCheckbox = document.getElementById('cleanup-all');
+        const warningBanner = document.getElementById('cleanup-warning');
+
+        deleteAllCheckbox?.addEventListener('change', () => {
+            if (warningBanner) {
+                warningBanner.style.display = deleteAllCheckbox.checked ? 'flex' : 'none';
+            }
+        });
+
+        document.getElementById('btn-confirm-cleanup')?.addEventListener('click', async () => {
+            const deleteAll = document.getElementById('cleanup-all')?.checked || false;
+            const daysSelect = document.getElementById('cleanup-days');
+            const days = daysSelect ? parseInt(daysSelect.value, 10) : 7;
+
+            hideModal();
+            showLoading('Cleaning up migration backups...');
+
+            const cleanupResult = await api('cleanup_migration_backups', {
+                delete_all: deleteAll,
+                days: days
+            });
+
+            hideLoading();
+
+            if (cleanupResult && cleanupResult.success) {
+                const deleted = cleanupResult.deleted || 0;
+                const kept = cleanupResult.kept || 0;
+                showToast(`Deleted ${deleted} backup(s), kept ${kept}`, 'success');
+            } else {
+                showToast('Cleanup failed: ' + (cleanupResult?.error || 'Unknown error'), 'error');
+            }
+        });
+    }
+
     /**
      * Save audit snapshot
      */
@@ -3499,6 +3624,7 @@
         document.getElementById('btn-save-snapshot')?.addEventListener('click', saveAuditSnapshot);
         document.getElementById('btn-compare-drift')?.addEventListener('click', compareDrift);
         document.getElementById('btn-validate-all')?.addEventListener('click', validateAllSites);
+        document.getElementById('btn-cleanup-migrations')?.addEventListener('click', showMigrationCleanupModal);
         document.getElementById('btn-fm-assets')?.addEventListener('click', switchFMtoAssets);
         document.getElementById('btn-fm-sites')?.addEventListener('click', switchFMtoSites);
 

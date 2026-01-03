@@ -1494,3 +1494,71 @@ function cmd_get_migration_log(int $limit = 20): array
 
     return ['success' => true, 'entries' => $entries];
 }
+
+/**
+ * List migration backups
+ */
+function cmd_list_migration_backups(): array
+{
+    $cmd = '/usr/local/bin/jps-migration-cleanup --list --json';
+
+    $result = execute_command($cmd);
+
+    if ($result['success'] && !empty($result['output'])) {
+        $data = json_decode($result['output'], true);
+        if ($data !== null) {
+            return [
+                'success' => true,
+                'count' => $data['count'] ?? 0,
+                'backups' => $data['backups'] ?? [],
+            ];
+        }
+    }
+
+    return [
+        'success' => false,
+        'error' => $result['error'] ?? 'Failed to list migration backups',
+        'backups' => [],
+    ];
+}
+
+/**
+ * Cleanup migration backups
+ * Supports --all, --days, and --domain options
+ */
+function cmd_cleanup_migration_backups(bool $delete_all = false, int $days = 7, string $domain = ''): array
+{
+    $cmd = '/usr/local/bin/jps-migration-cleanup --delete --json';
+
+    if ($delete_all) {
+        $cmd .= ' --all';
+    } else {
+        $cmd .= ' --days ' . (int)$days;
+    }
+
+    if (!empty($domain)) {
+        $domain = preg_replace('/[^a-zA-Z0-9.-]/', '', $domain);
+        $cmd .= ' --domain ' . escapeshellarg($domain);
+    }
+
+    log_action('cleanup_migration_backups', "Delete all: " . ($delete_all ? 'yes' : 'no') . ", Days: $days, Domain: $domain");
+
+    $result = execute_command($cmd);
+
+    if ($result['success'] && !empty($result['output'])) {
+        $data = json_decode($result['output'], true);
+        if ($data !== null) {
+            return [
+                'success' => true,
+                'deleted' => $data['deleted'] ?? 0,
+                'kept' => $data['kept'] ?? 0,
+                'items' => $data['items'] ?? [],
+            ];
+        }
+    }
+
+    return [
+        'success' => false,
+        'error' => $result['error'] ?? 'Failed to cleanup migration backups',
+    ];
+}

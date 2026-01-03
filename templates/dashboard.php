@@ -146,6 +146,10 @@ defined('JPS_ADMIN') or die('Direct access not permitted');
                             <span class="action-icon">&#x2705;</span>
                             <span class="action-label">Validate All Sites</span>
                         </button>
+                        <button type="button" class="action-btn action-system" id="btn-cleanup-migrations" data-action="cleanup_migrations">
+                            <span class="action-icon">&#x1F9F9;</span>
+                            <span class="action-label">Clear Migration Backups</span>
+                        </button>
                     </div>
                 </div>
             </div>
