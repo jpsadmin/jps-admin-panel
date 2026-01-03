@@ -2332,6 +2332,484 @@
         }
     }
 
+    // ============================================
+    // Site Migration Wizard
+    // ============================================
+
+    /**
+     * Migration wizard state
+     */
+    let migrateWizard = {
+        currentStep: 1,
+        domain: '',
+        source: '',
+        sourceType: 'auto',
+        note: '',
+        stagingDomain: ''
+    };
+
+    /**
+     * Show migrate site modal
+     */
+    function showMigrateSiteModal() {
+        // Reset wizard state
+        migrateWizard = {
+            currentStep: 1,
+            domain: '',
+            source: '',
+            sourceType: 'auto',
+            note: '',
+            stagingDomain: ''
+        };
+
+        renderMigrateWizardStep(1);
+    }
+
+    /**
+     * Render a specific migration wizard step
+     */
+    function renderMigrateWizardStep(step) {
+        migrateWizard.currentStep = step;
+
+        const stepIndicator = `
+            <div class="wizard-steps">
+                <div class="wizard-step ${step >= 1 ? 'active' : ''} ${step > 1 ? 'complete' : ''}">
+                    <div class="wizard-step-number">${step > 1 ? '&#x2713;' : '1'}</div>
+                    <div class="wizard-step-label">Configure</div>
+                </div>
+                <div class="wizard-step-connector ${step > 1 ? 'active' : ''}"></div>
+                <div class="wizard-step ${step >= 2 ? 'active' : ''} ${step > 2 ? 'complete' : ''}">
+                    <div class="wizard-step-number">${step > 2 ? '&#x2713;' : '2'}</div>
+                    <div class="wizard-step-label">Migrate</div>
+                </div>
+                <div class="wizard-step-connector ${step > 2 ? 'active' : ''}"></div>
+                <div class="wizard-step ${step >= 3 ? 'active' : ''}">
+                    <div class="wizard-step-number">3</div>
+                    <div class="wizard-step-label">Complete</div>
+                </div>
+            </div>
+        `;
+
+        let stepContent = '';
+        switch (step) {
+            case 1:
+                stepContent = renderMigrateConfigStep();
+                break;
+            case 2:
+                stepContent = renderMigrateProgressStep();
+                break;
+            case 3:
+                stepContent = renderMigrateCompleteStep();
+                break;
+        }
+
+        const content = `
+            <div class="deploy-wizard migrate-wizard">
+                ${stepIndicator}
+                <div class="wizard-content">
+                    ${stepContent}
+                </div>
+            </div>
+        `;
+
+        showModal('Migrate Site', content);
+        attachMigrateWizardListeners(step);
+    }
+
+    /**
+     * Step 1: Migration configuration
+     */
+    function renderMigrateConfigStep() {
+        return `
+            <div class="wizard-step-content" id="migrate-config-step">
+                <h3>Step 1: Migration Configuration</h3>
+                <p class="step-description">Enter the target domain and source location for the migration. A staging site (staging.domain) will be created first.</p>
+
+                <div class="form-group">
+                    <label for="migrate-domain-input">Target Domain</label>
+                    <input type="text" id="migrate-domain-input" class="form-input" placeholder="example.com" value="${escapeHtml(migrateWizard.domain)}" autocomplete="off">
+                    <small>The final domain for the migrated site (staging.domain will be created first)</small>
+                </div>
+
+                <div class="form-group">
+                    <label for="migrate-source-input">Migration Source</label>
+                    <input type="text" id="migrate-source-input" class="form-input" placeholder="/path/to/backup.wpress or user@host:/path/to/site" value="${escapeHtml(migrateWizard.source)}" autocomplete="off">
+                    <small>Path to .wpress file, .tar.gz archive, or rsync source (user@host:/path)</small>
+                </div>
+
+                <div class="form-group">
+                    <label for="migrate-source-type">Source Type</label>
+                    <select id="migrate-source-type" class="form-input">
+                        <option value="auto" ${migrateWizard.sourceType === 'auto' ? 'selected' : ''}>Auto-detect</option>
+                        <option value="wpress" ${migrateWizard.sourceType === 'wpress' ? 'selected' : ''}>.wpress (All-in-One WP Migration)</option>
+                        <option value="tarball" ${migrateWizard.sourceType === 'tarball' ? 'selected' : ''}>.tar.gz Archive</option>
+                        <option value="rsync" ${migrateWizard.sourceType === 'rsync' ? 'selected' : ''}>Rsync (SSH)</option>
+                    </select>
+                    <small>Usually auto-detect works; override if needed</small>
+                </div>
+
+                <div class="form-group">
+                    <label for="migrate-note-input">Migration Note (optional)</label>
+                    <input type="text" id="migrate-note-input" class="form-input" placeholder="Client migration from old host" value="${escapeHtml(migrateWizard.note)}" autocomplete="off">
+                    <small>Optional note for the lifecycle log</small>
+                </div>
+
+                <div class="info-banner">
+                    <span class="info-icon">&#x2139;&#xFE0F;</span>
+                    <div>
+                        <strong>Staging-First Workflow</strong>
+                        <p>This will create <code>staging.${escapeHtml(migrateWizard.domain || 'yourdomain.com')}</code> for testing. After validation, you can promote it to production.</p>
+                    </div>
+                </div>
+
+                <div class="wizard-actions">
+                    <button type="button" class="btn btn-secondary btn-wizard-cancel">Cancel</button>
+                    <button type="button" class="btn btn-primary btn-start-migrate" id="btn-start-migrate">
+                        Start Migration
+                    </button>
+                </div>
+            </div>
+        `;
+    }
+
+    /**
+     * Step 2: Migration progress
+     */
+    function renderMigrateProgressStep() {
+        const steps = [
+            { id: 'preflight', name: 'Preflight checks' },
+            { id: 'staging', name: 'Creating staging site' },
+            { id: 'extract', name: 'Extracting source' },
+            { id: 'database', name: 'Importing database' },
+            { id: 'urls', name: 'Updating URLs' },
+            { id: 'validate', name: 'Validating site' }
+        ];
+
+        const stepItems = steps.map(s => `
+            <div class="progress-step pending" id="migrate-progress-${s.id}">
+                <span class="progress-icon">&#x23F3;</span>
+                <span class="progress-name">${s.name}</span>
+                <span class="progress-status"></span>
+            </div>
+        `).join('');
+
+        return `
+            <div class="wizard-step-content" id="migrate-progress-step">
+                <h3>Step 2: Migrating Site</h3>
+                <p class="step-description">Please wait while the site is being migrated. This may take several minutes depending on the site size.</p>
+
+                <div class="deploy-domain-display">
+                    <span class="domain-icon">&#x1F4E6;</span>
+                    <span class="domain-name">${escapeHtml(migrateWizard.source)}</span>
+                    <span class="domain-arrow">&#x27A1;</span>
+                    <span class="domain-name">staging.${escapeHtml(migrateWizard.domain)}</span>
+                </div>
+
+                <div class="progress-steps" id="migrate-progress-steps">
+                    ${stepItems}
+                </div>
+
+                <div class="progress-details-toggle">
+                    <button type="button" class="btn btn-sm btn-link" id="btn-toggle-migrate-details">
+                        Show Details
+                    </button>
+                </div>
+
+                <div class="progress-details hidden" id="migrate-details">
+                    <pre id="migrate-log"></pre>
+                </div>
+
+                <div class="wizard-actions">
+                    <button type="button" class="btn btn-secondary btn-wizard-cancel" disabled id="btn-cancel-migrate">
+                        Cancel
+                    </button>
+                </div>
+            </div>
+        `;
+    }
+
+    /**
+     * Step 3: Migration completion
+     */
+    function renderMigrateCompleteStep() {
+        const stagingDomain = 'staging.' + migrateWizard.domain;
+
+        return `
+            <div class="wizard-step-content" id="migrate-complete-step">
+                <div class="completion-header">
+                    <span class="completion-icon">&#x1F389;</span>
+                    <h3>Migration Complete!</h3>
+                    <p>Your site has been migrated to the staging environment.</p>
+                </div>
+
+                <div class="credentials-box">
+                    <h4>Staging Site</h4>
+                    <div class="credential-row">
+                        <span class="credential-label">Staging URL:</span>
+                        <span class="credential-value">
+                            <a href="https://${escapeHtml(stagingDomain)}" target="_blank">https://${escapeHtml(stagingDomain)}</a>
+                        </span>
+                    </div>
+                    <div class="credential-row">
+                        <span class="credential-label">WP Admin:</span>
+                        <span class="credential-value">
+                            <a href="https://${escapeHtml(stagingDomain)}/wp-admin/" target="_blank">https://${escapeHtml(stagingDomain)}/wp-admin/</a>
+                        </span>
+                    </div>
+                </div>
+
+                <div class="info-banner">
+                    <span class="info-icon">&#x2139;&#xFE0F;</span>
+                    <div>
+                        <strong>Next Steps</strong>
+                        <ul style="margin: 0.5rem 0 0 1rem; padding: 0;">
+                            <li>Test the staging site thoroughly</li>
+                            <li>Verify all content, links, and functionality</li>
+                            <li>Update DNS when ready to go live</li>
+                            <li>Delete staging site after cutover</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div class="wizard-actions completion-actions">
+                    <button type="button" class="btn btn-secondary" id="btn-visit-staging">
+                        &#x1F310; Visit Staging
+                    </button>
+                    <button type="button" class="btn btn-secondary" id="btn-staging-admin">
+                        &#x1F511; WP Admin
+                    </button>
+                    <button type="button" class="btn btn-primary" id="btn-migrate-done">
+                        Done
+                    </button>
+                </div>
+            </div>
+        `;
+    }
+
+    /**
+     * Attach event listeners for migration wizard steps
+     */
+    function attachMigrateWizardListeners(step) {
+        // Cancel button (always available)
+        document.querySelectorAll('.btn-wizard-cancel').forEach(btn => {
+            btn.addEventListener('click', () => {
+                hideModal();
+            });
+        });
+
+        switch (step) {
+            case 1:
+                attachMigrateConfigListeners();
+                break;
+            case 2:
+                attachMigrateProgressListeners();
+                break;
+            case 3:
+                attachMigrateCompleteListeners();
+                break;
+        }
+    }
+
+    /**
+     * Migration config step listeners
+     */
+    function attachMigrateConfigListeners() {
+        const domainInput = document.getElementById('migrate-domain-input');
+        const sourceInput = document.getElementById('migrate-source-input');
+        const sourceTypeSelect = document.getElementById('migrate-source-type');
+        const noteInput = document.getElementById('migrate-note-input');
+        const startBtn = document.getElementById('btn-start-migrate');
+
+        if (!startBtn) return;
+
+        // Focus the domain input
+        if (domainInput) domainInput.focus();
+
+        // Update staging domain preview when domain changes
+        if (domainInput) {
+            domainInput.addEventListener('input', () => {
+                const infoBanner = document.querySelector('.info-banner code');
+                if (infoBanner) {
+                    const domain = domainInput.value.trim() || 'yourdomain.com';
+                    infoBanner.textContent = 'staging.' + domain;
+                }
+            });
+        }
+
+        // Start migration button
+        startBtn.addEventListener('click', async () => {
+            const domain = domainInput.value.trim().toLowerCase();
+            const source = sourceInput.value.trim();
+            const sourceType = sourceTypeSelect.value;
+            const note = noteInput?.value.trim() || '';
+
+            // Validate domain
+            if (!domain) {
+                showToast('Please enter a target domain', 'warning');
+                domainInput.focus();
+                return;
+            }
+
+            if (!domain.match(/^[a-z0-9]([a-z0-9-]*\.)+[a-z]{2,}$/)) {
+                showToast('Please enter a valid domain name', 'warning');
+                domainInput.focus();
+                return;
+            }
+
+            // Validate source
+            if (!source) {
+                showToast('Please enter a migration source', 'warning');
+                sourceInput.focus();
+                return;
+            }
+
+            // Store values
+            migrateWizard.domain = domain;
+            migrateWizard.source = source;
+            migrateWizard.sourceType = sourceType;
+            migrateWizard.note = note;
+            migrateWizard.stagingDomain = 'staging.' + domain;
+
+            // Start migration
+            await startMigration();
+        });
+    }
+
+    /**
+     * Start the migration process
+     */
+    async function startMigration() {
+        // Move to progress step
+        renderMigrateWizardStep(2);
+
+        // Disable cancel button during migration
+        const cancelBtn = document.getElementById('btn-cancel-migrate');
+        if (cancelBtn) {
+            cancelBtn.disabled = true;
+            cancelBtn.textContent = 'Migrating...';
+        }
+
+        // Reset progress steps
+        const stepIds = ['preflight', 'staging', 'extract', 'database', 'urls', 'validate'];
+        stepIds.forEach(id => {
+            const stepEl = document.getElementById(`migrate-progress-${id}`);
+            if (stepEl) {
+                stepEl.className = 'progress-step pending';
+            }
+        });
+
+        try {
+            // Run migration synchronously - this can take several minutes
+            const result = await api('migrate_site_start', {
+                domain: migrateWizard.domain,
+                source: migrateWizard.source,
+                source_type: migrateWizard.sourceType === 'auto' ? '' : migrateWizard.sourceType,
+                note: migrateWizard.note
+            });
+
+            // Update details log
+            const logEl = document.getElementById('migrate-log');
+            if (logEl && result?.output) {
+                logEl.textContent = result.output;
+                logEl.scrollTop = logEl.scrollHeight;
+            }
+
+            // Handle result
+            if (result && result.success) {
+                // Mark all steps as complete
+                stepIds.forEach(id => {
+                    const stepEl = document.getElementById(`migrate-progress-${id}`);
+                    if (stepEl) {
+                        stepEl.className = 'progress-step complete';
+                        const icon = stepEl.querySelector('.progress-icon');
+                        if (icon) icon.innerHTML = '&#x2714;';
+                    }
+                });
+
+                showToast('Site migrated successfully!', 'success');
+                setTimeout(() => {
+                    renderMigrateWizardStep(3);
+                    loadSites(); // Refresh site list
+                }, 1000);
+            } else {
+                // Migration failed
+                showToast('Migration failed: ' + (result?.error || 'Check the details for more information'), 'error');
+
+                // Show error state on progress steps
+                stepIds.forEach(id => {
+                    const stepEl = document.getElementById(`migrate-progress-${id}`);
+                    if (stepEl && stepEl.classList.contains('pending')) {
+                        stepEl.className = 'progress-step';
+                    }
+                });
+
+                // Re-enable cancel button
+                if (cancelBtn) {
+                    cancelBtn.disabled = false;
+                    cancelBtn.textContent = 'Close';
+                }
+
+                // Show details section
+                const detailsEl = document.getElementById('migrate-details');
+                if (detailsEl) {
+                    detailsEl.classList.remove('hidden');
+                }
+            }
+        } catch (err) {
+            showToast('Migration failed: ' + err.message, 'error');
+            if (cancelBtn) {
+                cancelBtn.disabled = false;
+                cancelBtn.textContent = 'Close';
+            }
+        }
+    }
+
+    /**
+     * Migration progress step listeners
+     */
+    function attachMigrateProgressListeners() {
+        const toggleBtn = document.getElementById('btn-toggle-migrate-details');
+        const detailsEl = document.getElementById('migrate-details');
+
+        if (toggleBtn && detailsEl) {
+            toggleBtn.addEventListener('click', () => {
+                detailsEl.classList.toggle('hidden');
+                toggleBtn.textContent = detailsEl.classList.contains('hidden') ? 'Show Details' : 'Hide Details';
+            });
+        }
+    }
+
+    /**
+     * Migration complete step listeners
+     */
+    function attachMigrateCompleteListeners() {
+        const stagingDomain = 'staging.' + migrateWizard.domain;
+
+        // Visit staging
+        const visitBtn = document.getElementById('btn-visit-staging');
+        if (visitBtn) {
+            visitBtn.addEventListener('click', () => {
+                window.open('https://' + stagingDomain, '_blank');
+            });
+        }
+
+        // WP Admin
+        const adminBtn = document.getElementById('btn-staging-admin');
+        if (adminBtn) {
+            adminBtn.addEventListener('click', () => {
+                window.open('https://' + stagingDomain + '/wp-admin/', '_blank');
+            });
+        }
+
+        // Done
+        const doneBtn = document.getElementById('btn-migrate-done');
+        if (doneBtn) {
+            doneBtn.addEventListener('click', () => {
+                hideModal();
+            });
+        }
+    }
+
     /**
      * Save audit snapshot
      */
@@ -3017,6 +3495,7 @@
         document.getElementById('btn-run-audit')?.addEventListener('click', showFullAudit);
         document.getElementById('btn-git-pull')?.addEventListener('click', gitPull);
         document.getElementById('btn-deploy-site')?.addEventListener('click', showDeploySiteModal);
+        document.getElementById('btn-migrate-site')?.addEventListener('click', showMigrateSiteModal);
         document.getElementById('btn-save-snapshot')?.addEventListener('click', saveAuditSnapshot);
         document.getElementById('btn-compare-drift')?.addEventListener('click', compareDrift);
         document.getElementById('btn-validate-all')?.addEventListener('click', validateAllSites);

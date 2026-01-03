@@ -39,6 +39,7 @@ Cmnd_Alias JPS_TOOLS = \
     /usr/local/bin/jps-validate-site *, \
     /usr/local/bin/jps-install-stack *, \
     /usr/local/bin/jps-regen-password *, \
+    /usr/local/bin/jps-migrate-site *, \
     /usr/local/bin/jps-daily-monitor, \
     /usr/local/bin/jps-daily-monitor --json
 

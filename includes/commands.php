@@ -1353,3 +1353,144 @@ function cmd_install_stack(string $domain, bool $include_ecomm = false): array
         'error' => $result['error'] ?? null,
     ];
 }
+
+/**
+ * Start site migration
+ * Creates staging site and imports from source
+ */
+function cmd_migrate_site_start(string $domain, string $source, string $source_type = '', string $note = ''): array
+{
+    // Basic domain validation (don't check if exists - it's a new site)
+    if (empty($domain)) {
+        return ['success' => false, 'error' => 'Domain is required'];
+    }
+
+    $domain = preg_replace('/[^a-zA-Z0-9.-]/', '', $domain);
+    if (empty($domain) || strlen($domain) < 4 || !preg_match('/^[a-zA-Z0-9]([a-zA-Z0-9-]*\.)+[a-zA-Z]{2,}$/', $domain)) {
+        return ['success' => false, 'error' => 'Invalid domain format'];
+    }
+
+    // Validate source path exists (for file-based sources)
+    if (empty($source)) {
+        return ['success' => false, 'error' => 'Source path is required'];
+    }
+
+    // For file sources, verify file exists
+    if (!preg_match('/^[a-zA-Z0-9._-]+@/', $source)) {
+        // Not an rsync URL, check if file exists
+        if (!file_exists($source)) {
+            return ['success' => false, 'error' => 'Source file not found: ' . $source];
+        }
+    }
+
+    // Build command
+    $cmd = '/usr/local/bin/jps-migrate-site';
+    $cmd .= ' --domain ' . escapeshellarg($domain);
+    $cmd .= ' --source ' . escapeshellarg($source);
+    $cmd .= ' --progress';
+    $cmd .= ' --yes';  // Skip confirmation for API use
+
+    if (!empty($note)) {
+        $note = preg_replace('/[^a-zA-Z0-9 ._-]/', '', $note);
+        $cmd .= ' --note ' . escapeshellarg($note);
+    }
+
+    log_action('migrate_site_start', "Starting migration for {$domain} from {$source}");
+
+    // Execute - this is a long-running operation
+    $result = execute_command($cmd);
+
+    // Parse the progress output to extract status
+    $output = $result['output'] ?? '';
+    $lines = explode("\n", trim($output));
+
+    $progress = [];
+    $migration_complete = false;
+    $migration_failed = false;
+    $staging_domain = 'staging.' . $domain;
+
+    foreach ($lines as $line) {
+        $line = trim($line);
+        if (empty($line)) continue;
+
+        $json = json_decode($line, true);
+        if ($json && isset($json['step'])) {
+            if ($json['step'] === 'result') {
+                if ($json['status'] === 'success') {
+                    $migration_complete = true;
+                    if (isset($json['staging_domain'])) {
+                        $staging_domain = $json['staging_domain'];
+                    }
+                } else {
+                    $migration_failed = true;
+                }
+            } else {
+                $progress[] = $json;
+            }
+        }
+    }
+
+    $success = $migration_complete && !$migration_failed;
+
+    return [
+        'success' => $success,
+        'complete' => $migration_complete,
+        'staging_domain' => $staging_domain,
+        'progress' => $progress,
+        'output' => $output,
+        'error' => $success ? null : ($result['error'] ?? 'Migration failed'),
+    ];
+}
+
+/**
+ * Get migration status/history
+ */
+function cmd_get_migration_log(int $limit = 20): array
+{
+    $log_file = '/opt/jps-server-tools/logs/lifecycle/migrate.log';
+
+    if (!file_exists($log_file)) {
+        return ['success' => true, 'entries' => []];
+    }
+
+    // Read last N lines
+    $cmd = 'tail -n ' . (int)$limit . ' ' . escapeshellarg($log_file);
+    $result = execute_command($cmd, false);
+
+    if (!$result['success']) {
+        return ['success' => false, 'error' => 'Failed to read migration log'];
+    }
+
+    $entries = [];
+    $lines = explode("\n", trim($result['output']));
+
+    foreach ($lines as $line) {
+        if (empty(trim($line))) continue;
+
+        // Parse log line format: [timestamp] key=value key=value ...
+        $entry = [];
+
+        // Extract timestamp
+        if (preg_match('/^\[([^\]]+)\]/', $line, $matches)) {
+            $entry['timestamp'] = $matches[1];
+            $line = substr($line, strlen($matches[0]));
+        }
+
+        // Extract key=value pairs
+        preg_match_all('/(\w+)=(?:"([^"]*)"|(\S+))/', $line, $matches, PREG_SET_ORDER);
+        foreach ($matches as $match) {
+            $key = $match[1];
+            $value = $match[2] !== '' ? $match[2] : $match[3];
+            $entry[$key] = $value;
+        }
+
+        if (!empty($entry)) {
+            $entries[] = $entry;
+        }
+    }
+
+    // Reverse to show newest first
+    $entries = array_reverse($entries);
+
+    return ['success' => true, 'entries' => $entries];
+}

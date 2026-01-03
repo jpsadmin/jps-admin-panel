@@ -289,6 +289,22 @@ switch ($action) {
         json_response($result);
         break;
 
+    case 'migrate_site_start':
+        set_time_limit(1800); // 30 minute timeout for migration
+        $domain = $input['domain'] ?? '';
+        $source = $input['source'] ?? '';
+        $source_type = $input['source_type'] ?? '';
+        $note = $input['note'] ?? '';
+        $result = cmd_migrate_site_start($domain, $source, $source_type, $note);
+        json_response($result);
+        break;
+
+    case 'get_migration_log':
+        $limit = (int)($input['limit'] ?? 20);
+        $result = cmd_get_migration_log($limit);
+        json_response($result);
+        break;
+
     default:
         json_response(['success' => false, 'error' => 'Unknown action'], 400);
 }
