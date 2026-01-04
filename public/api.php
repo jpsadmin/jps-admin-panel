@@ -197,6 +197,10 @@ switch ($action) {
         $result = cmd_filemanager_sites_view();
         json_response($result);
         break;
+    case 'filemanager_migrations_view':
+        $result = cmd_filemanager_migrations_view();
+        json_response($result);
+        break;
 
     case 'get_monitor_report':
         $result = cmd_get_monitor_report();

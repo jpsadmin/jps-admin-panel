@@ -122,6 +122,10 @@ defined('JPS_ADMIN') or die('Direct access not permitted');
                             <span class="action-icon">&#x1F310;</span>
                             <span class="action-label">FM: Sites View</span>
                         </button>
+                        <button type="button" class="action-btn" id="btn-fm-migrations" data-action="filemanager_migrations_view">
+                            <span class="action-icon">&#x1F4E6;</span>
+                            <span class="action-label">FM: Migrations</span>
+                        </button>
                     </div>
                 </div>
 

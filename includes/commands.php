@@ -699,11 +699,15 @@ function cmd_filemanager_assets_view(): array
 {
     $filemanager_path = '/var/www/admin-panel/public/filemanager.php';
     $content = file_get_contents($filemanager_path);
+
+    // Replace any of the possible root paths
     $content = str_replace('$root_path = \'/usr/local/websites\'', '$root_path = \'/usr/local\'', $content);
+    $content = str_replace('$root_path = \'/var/backups/jps/migrations\'', '$root_path = \'/usr/local\'', $content);
+
     file_put_contents($filemanager_path, $content);
-    
+
     log_action('filemanager_assets_view', 'File Manager switched to assets view');
-    
+
     return ['success' => true, 'output' => 'Switched to assets view'];
 }
 
@@ -714,12 +718,35 @@ function cmd_filemanager_sites_view(): array
 {
     $filemanager_path = '/var/www/admin-panel/public/filemanager.php';
     $content = file_get_contents($filemanager_path);
+
+    // Replace any of the possible root paths
     $content = str_replace('$root_path = \'/usr/local\'', '$root_path = \'/usr/local/websites\'', $content);
+    $content = str_replace('$root_path = \'/var/backups/jps/migrations\'', '$root_path = \'/usr/local/websites\'', $content);
+
     file_put_contents($filemanager_path, $content);
 
     log_action('filemanager_sites_view', 'File Manager switched to sites view');
 
     return ['success' => true, 'output' => 'Switched to sites view'];
+}
+
+/**
+ * Switch File Manager to migrations view
+ */
+function cmd_filemanager_migrations_view(): array
+{
+    $filemanager_path = '/var/www/admin-panel/public/filemanager.php';
+    $content = file_get_contents($filemanager_path);
+
+    // Replace any of the possible root paths
+    $content = str_replace('$root_path = \'/usr/local/websites\'', '$root_path = \'/var/backups/jps/migrations\'', $content);
+    $content = str_replace('$root_path = \'/usr/local\'', '$root_path = \'/var/backups/jps/migrations\'', $content);
+
+    file_put_contents($filemanager_path, $content);
+
+    log_action('filemanager_migrations_view', 'File Manager switched to migrations view');
+
+    return ['success' => true, 'output' => 'Switched to migrations view'];
 }
 
 /**
