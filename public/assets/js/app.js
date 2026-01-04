@@ -1551,6 +1551,17 @@
         }
     }
 
+    async function switchFMtoMigrations() {
+        showLoading('Switching File Manager to Migrations view...');
+        const result = await api('filemanager_migrations_view');
+        hideLoading();
+        if (result && result.success) {
+            showToast('File Manager switched to Migrations view', 'success');
+        } else {
+            showToast('Failed to switch view', 'error');
+        }
+    }
+
     async function gitPull() {
         showLoading('Pulling updates...');
 
@@ -3712,6 +3723,7 @@
         document.getElementById('btn-cleanup-migrations')?.addEventListener('click', showMigrationCleanupModal);
         document.getElementById('btn-fm-assets')?.addEventListener('click', switchFMtoAssets);
         document.getElementById('btn-fm-sites')?.addEventListener('click', switchFMtoSites);
+        document.getElementById('btn-fm-migrations')?.addEventListener('click', switchFMtoMigrations);
 
         // Monitor buttons
         document.getElementById('btn-refresh-monitor')?.addEventListener('click', loadMonitorStatus);
