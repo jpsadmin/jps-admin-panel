@@ -2356,6 +2356,9 @@
      * Show migrate site modal
      */
     async function showMigrateSiteModal() {
+        // Default fallback path if config loading fails
+        const defaultIncomingDir = '/var/backups/jps/migrations/incoming';
+
         // Show loading while we fetch config
         showLoading('Loading migration configuration...');
 
@@ -2363,23 +2366,28 @@
         const configResult = await api('get_migration_config');
         hideLoading();
 
+        // Extract config with fallback defaults
+        const config = configResult?.config || {
+            incoming_dir: defaultIncomingDir,
+            metadata_dir: '/var/backups/jps/migrations/metadata',
+            retention_days: 7,
+            allow_default_source: true,
+            incoming_dir_exists: false,
+            incoming_dir_count: 0
+        };
+
         // Reset wizard state
         migrateWizard = {
             currentStep: 1,
             domain: '',
-            source: '',
+            source: config.incoming_dir || defaultIncomingDir,
             sourceType: 'auto',
             note: '',
             stagingDomain: '',
-            config: configResult?.config || null,
+            config: config,
             useDefaultSource: true,
             advancedMode: false
         };
-
-        // Pre-fill default source if config available
-        if (migrateWizard.config?.incoming_dir) {
-            migrateWizard.source = migrateWizard.config.incoming_dir;
-        }
 
         renderMigrateWizardStep(1);
     }
@@ -2493,11 +2501,11 @@
                 <div class="form-group">
                     <label for="migrate-source-type">Source Type</label>
                     <select id="migrate-source-type" class="form-input">
-                        <option value="auto" ${migrateWizard.sourceType === 'auto' ? 'selected' : ''}>Auto-detect</option>
-                        <option value="wpvivid" ${migrateWizard.sourceType === 'wpvivid' ? 'selected' : ''}>WPvivid Backup Folder</option>
+                        <option value="auto" ${migrateWizard.sourceType === 'auto' ? 'selected' : ''}>Auto-detect (Recommended)</option>
+                        <option value="zip_backup" ${migrateWizard.sourceType === 'zip_backup' ? 'selected' : ''}>ZIP Backup Folder (WPvivid, WPMU DEV, etc.)</option>
                         <option value="wpress" ${migrateWizard.sourceType === 'wpress' ? 'selected' : ''}>.wpress (All-in-One WP Migration)</option>
                         <option value="tarball" ${migrateWizard.sourceType === 'tarball' ? 'selected' : ''}>.tar.gz Archive</option>
-                        <option value="zip" ${migrateWizard.sourceType === 'zip' ? 'selected' : ''}>.zip Archive</option>
+                        <option value="zip" ${migrateWizard.sourceType === 'zip' ? 'selected' : ''}>.zip (Single Archive)</option>
                         <option value="rsync" ${migrateWizard.sourceType === 'rsync' ? 'selected' : ''}>Rsync (SSH)</option>
                     </select>
                     <small>Usually auto-detect works; override if needed</small>
